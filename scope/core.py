@@ -150,7 +150,10 @@ class Engine:
                 return validate(raw) if validate else raw
             except (ValueError, KeyError, TypeError, OverflowError) as exc:
                 reason = redact(f"{type(exc).__name__}: {exc}")[:1000]
-                preview = redact(json.dumps(raw, ensure_ascii=False, default=str))[:1500] if raw is not None else None
+                preview = (redact(json.dumps(raw, ensure_ascii=False, default=str))[:1500] if raw is not None
+                           else getattr(exc, 'response_preview', None))
+                if preview is not None:
+                    preview = redact(preview)[:1500]
                 self.events.append({"event": "model_output_error", "role": role,
                                     "attempt": attempt + 1, "reason": reason, "response_preview": preview})
                 log(f"role={role} invalid_output={reason} response_preview={preview}")
@@ -255,6 +258,7 @@ class Engine:
             state, history, completed_actions = State(), [], []
             visited_urls, failed_actions = set(), []
             repeated_actions = 0
+            recover_output = False
             observed_sources = {e["source"] for c in parents.values() for e in c["evidence"]}
             base = {"query": query, "node": asdict(node), "parents": parents}
             accepted = False
@@ -269,7 +273,8 @@ class Engine:
                            "completed_actions": list(completed_actions), "capsule_budget": self.capsule_budget,
                            "failed_actions": failed_actions[-4:], "visited_urls": sorted(visited_urls),
                            "allowed_sources": sorted(observed_sources), "allowed_actions": allowed_actions,
-                           "finish_requested": finish_requested}
+                           "finish_requested": finish_requested,
+                           "output_recovery": recover_output}
                 if not cfg.structured_memory:
                     context["history"] = history
                     context["parent_histories"] = {d: histories[d] for d in node.dependencies}
@@ -279,7 +284,8 @@ class Engine:
                         if action['action'] not in allowed_actions:
                             raise ValueError("A finish candidate is required now; cite existing findings for verification")
                         return action
-                    action = self._call("executor", context, 0.7, validate_action, retries=0)
+                    action = self._call("executor", context, 0.0 if recover_output else 0.7, validate_action, retries=0)
+                    recover_output = False
                     name = action.get("action")
                     log(f"node={node.id} action={name}")
                     if name == "finish":
@@ -378,6 +384,7 @@ class Engine:
                     else:
                         raise ValueError(f"Invalid action: {name}")
                 except (ValueError, KeyError, TypeError, SyntaxError, ZeroDivisionError) as exc:
+                    recover_output = True
                     log(f"node={node.id} invalid_output={type(exc).__name__}: {exc}")
                     reason = f"Invalid local output: {type(exc).__name__}: {exc}"
                     state.feedback.append(reason[:500])

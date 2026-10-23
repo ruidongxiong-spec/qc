@@ -1,5 +1,7 @@
 """Role-specific decoding schemas; runtime semantic validation remains mandatory."""
 
+CONTRACT_VERSION = 2
+
 
 def obj(properties):
     return {"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False}
@@ -18,20 +20,19 @@ def schema_for(role, payload):
     source = {"type": "string", "enum": sources} if sources else text(2000)
     evidence = array(obj({"fact": text(350), "source": source}), 4)
     candidate = {"result": text(500), "evidence": evidence,
-                 "confidence": {"type": "number", "minimum": 0, "maximum": 1}}
+                 "confidence": {"type": "number", "enum": [i / 10 for i in range(11)]}}
     if role == "planner":
         return obj({"nodes": array(obj({"id": text(64), "description": text(1000),
                     "dependencies": array(text(64)), "output_format": text(100),
                     "constraints": array(text(300))}), payload.get("max_nodes", 32))})
     if role == "executor":
-        # One object root works with both OpenAI strict schemas and Ollama.
-        # Inapplicable fields must be null/empty; runtime checks match action to arguments.
-        nullable = {"anyOf": [text(2000), {"type": "null"}]}
+        # Avoid nested nullable unions in the constrained decoder. Use empty
+        # strings/lists and zero for inactive slots; runtime normalizes arguments.
         return obj({"action": {"type": "string", "enum": payload.get("allowed_actions", ["search", "visit", "python_repl", "finish"])},
-                    "arguments": {"anyOf": [obj({"query": nullable, "url": nullable, "expression": nullable}), {"type": "null"}]},
-                    "result": {"anyOf": [candidate["result"], {"type": "null"}]},
+                    "arguments": obj({"query": text(300), "url": text(2000), "expression": text(300)}),
+                    "result": candidate["result"],
                     "evidence": evidence,
-                    "confidence": {"anyOf": [candidate["confidence"], {"type": "null"}]}})
+                    "confidence": candidate["confidence"]})
     if role == "extractor":
         return obj({"new_findings": array(obj({"fact": text(350), "source": source}), 8),
                     "missing_info": array(text(250), 6), "new_leads": array(text(2000), 6)})

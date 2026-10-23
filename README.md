@@ -97,35 +97,36 @@ MuSiQue 官方 Ans/Full 的 train、dev、test 六份完整数据已导出 CSV�
 
 ## Windows 免费运行一条真实数据
 
-先安装 Python 3.11+、Git 和 [Ollama](https://ollama.com/download/windows)。在 `D:\qc` 的 PowerShell 中同步并运行：
+默认使用 **OpenRouter `liquid/lfm-2.5-2.6b` + DDGS + Jina**，无需安装或启动 Ollama。准备 Python 3.11+、Git、Clash 和 [OpenRouter API key](https://openrouter.ai/settings/keys)，然后执行：
 
 ```powershell
+cd D:\qc
 git -c http.proxy=http://127.0.0.1:7890 pull --ff-only origin main
-powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -PullModel
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1
 ```
 
-脚本安装锁定的 free-web 依赖和 tokenizers，使用 Clash HTTP 代理 `http://127.0.0.1:7890`，以 DDGS 搜索、匿名 Jina 读取，再通过本地 Ollama 的 `qwen2.5:7b` 运行清理版 HotpotQA 第一条数据一次。模型下载需要数 GB 空间，推理速度及可用模型大小取决于本机内存/显存；不调用付费模型 API。结果保存到唯一的 `runs/free-one-*.jsonl`，完成不代表答案正确，请查看答案、证据和 EM/F1。脚本仅修改当前进程环境变量，不保存密钥。默认使用 Ollama 原生 JSON Schema、8192 token 上下文及 512-token Capsule 预算；首次还会从 Hugging Face 下载 Qwen 对应的 tokenizer.json（不是重新下载模型），缓存版本与哈希。已有文件可用 `-TokenizerPath` 指定；更换模型需提供匹配的 `-TokenizerRepo` 或 `-TokenizerPath`。升级后第一次不要加 `-SkipInstall`。详见 [论文机制与本轮优化](docs/paper-aligned-optimizations.md)。
+脚本优先读取 `OPENROUTER_API_KEY`；未设置时提示隐藏输入，仅供该 PowerShell 进程使用，不写文件或日志。运行前查询该精确模型 ID 的可用信息及免费价格，请求设置零 token 价格上限，不切换到付费模型。免费供应商不可用、模型下线或被限流时会明确报错。
+
+脚本安装 free-web 与 tokenizers，使用 Clash HTTP 代理 `http://127.0.0.1:7890`，通过 DDGS 搜索、匿名 Jina 读取，评测清理版 HotpotQA 第一条一次。模型在 OpenRouter 远端运行；本地仅下载模型信息中对应仓库的 tokenizer.json，用于 512-token Capsule 计数，不复用 Qwen tokenizer。元数据缺少 tokenizer 仓库时需显式指定 `-TokenizerRepo` 或 `-TokenizerPath`；`-LegacyByteBudget` 可显式选择旧字节预算。默认 `json_object` 加角色结构提示和运行时校验；`-ResponseFormat json_schema` 可显式选择严格 Schema，供应商不支持时直接报错。
 
 ```powershell
-# 仅测试网页工具，不需要 Ollama
+# 只测试网页工具，不需要模型 key
 powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -CheckWebOnly
-# 已下载模型时直接运行；按实际 Clash HTTP 端口调整
-powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -ProxyUrl http://127.0.0.1:7890
-# 更换本地模型或数据集
-powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -Model qwen2.5:7b -InputCsv datasets/musique_ans_dev_clean1000.csv
-# 已装好依赖后，独立检查搜索、读取及搜索到读取链路
-.\.venv\Scripts\python.exe -m scope.web_smoke
+# 换数据集，仍使用同一个 OpenRouter 模型
+powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -InputCsv datasets/musique_ans_dev_clean1000.csv
+# 显式选择以前的本地 Ollama 模式（默认不会走这里）
+powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -ModelProvider ollama -Model qwen2.5:7b
 ```
 
-Jina 模式将网页地址交给 Jina 处理，不做本地 DNS 预检查或地址拦截；通过 Clash HTTP 代理连接时，由代理解析服务域名。direct 模式保留原有本地检查。DDGS/Jina 公共访问可能限流；连接成功不保证所有网页可读取。Ollama 必须运行，`-PullModel` 仅负责下载模型。网页检查成功后才会测试本地模型的 JSON 响应并执行真实评测。
+Jina 模式不做本地 DNS 预检查；通过 Clash HTTP 代理访问时，由代理解析服务域名。direct 模式保留原检查。联网成功不代表回答正确。模型用量记录包含服务返回的 cost、实际 model/provider（若有），结果仍保存至唯一的 `runs/free-one-*.jsonl`。详细配置及错误处理见 [OpenRouter 免费一题](docs/openrouter-free-one.md)。
 
-单条 Windows 脚本默认自动保存同一前缀的三类文件：
+单条 Windows 脚本保存同一前缀的文件；OpenRouter 另有 `.model.json` 记录公开模型信息：
 
 - `runs/free-one-*.log`：配置、代码版本、阶段、调用耗时、修正原因与错误。长请求每 15 秒输出 `WAIT`。Windows 默认用 stdout 显示，避免 PowerShell 5 将 stderr 日志当作失败；日志文件为 UTF-8。
 - `runs/free-one-*.jsonl`：逐题答案、参考答案、评分、状态、事件和工具审计；运行失败也有记录。
 - `runs/free-one-*.summary.json`：已尝试、完成、失败、回答/部分回答/弃答统计及 EM/F1。预检查失败时只有日志，尚未开始题目评测。
 
-常用选项：`-SkipInstall` 跳过已完成的依赖安装；`-SkipWebCheck` 显式跳过预检查（正式评测仍使用真实工具）；`-MaxSteps 8` 设置每节点步数；`-OutputRetries 1` 设置模型输出的额外修正次数；`-ModelTimeout 120` 设置单次模型 HTTP 请求超时。`-PullModel` 只在需要下载模型时使用。CLI 可使用 `--verbose --log-file runs/debug.log --output-retries 1`。
+常用选项：`-SkipInstall` 跳过已完成的依赖安装；`-SkipWebCheck` 显式跳过预检查（正式评测仍使用真实工具）；`-MaxSteps 8` 设置每节点步数；`-OutputRetries 1` 设置模型输出的额外修正次数；`-ModelTimeout 120` 设置单次模型 HTTP 请求超时。`-PullModel` 仅适用于显式选择的 Ollama 模式。CLI 可使用 `--verbose --log-file runs/debug.log --output-retries 1`。
 
 Windows 默认 `SCOPE_DDGS_BACKEND=auto`，其他入口默认 `duckduckgo`，可以通过同名环境变量选择。DDGS 9.16.0 禁用了 Bing 文本引擎，`bing` 会明确报错。日志、缓存、评测来源和矩阵续跑均记录搜索配置；auto 不保证结果来自同一搜索引擎。
 

@@ -15,6 +15,7 @@ from .evaluation import score
 from .datasets import load_questions
 from .tools import DemoTools, WebTools
 from .progress import redact
+from .structured import CONTRACT_VERSION
 
 
 def fingerprint(value):
@@ -73,6 +74,7 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
         model_settings['capsule_tokenizer_sha256'] = hashlib.sha256(Path(config.tokenizer_path).read_bytes()).hexdigest()
     if os.environ.get('SCOPE_TOKENIZER_PATH'):
         model_settings['context_tokenizer_sha256'] = hashlib.sha256(Path(os.environ['SCOPE_TOKENIZER_PATH']).read_bytes()).hexdigest()
+    model_settings['output_contract_version'] = CONTRACT_VERSION
     identity = fingerprint({"version": 2, "models": models, "rows": rows, "runs": runs,
                             "model_settings": model_settings,
                             "config": asdict(config), "search": search, "reader": reader, "demo": demo,
@@ -110,8 +112,9 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
                         if demo:
                             backend, tools = DemoBackend(), DemoTools()
                         else:
+                            default_key_env = 'OPENROUTER_API_KEY' if model['base_url'].rstrip('/') == 'https://openrouter.ai/api/v1' else 'SCOPE_API_KEY'
                             backend = OpenAIBackend(base_url=model["base_url"], model=model["model"],
-                                                    key=os.environ.get(model.get("api_key_env", "SCOPE_API_KEY"), ""))
+                                                    key=os.environ.get(model.get("api_key_env", default_key_env), ""))
                             tools = WebTools(search=search, reader=reader, cache_dir=output / "retrieval-cache")
                         engine = Engine(backend, tools, config)
                         result = engine.run(row["question"])

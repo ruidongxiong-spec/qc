@@ -13,7 +13,7 @@ _lock = Lock()
 
 def redact(message):
     message = str(message)
-    for name in ("SCOPE_API_KEY", "SERPER_API_KEY", "JINA_API_KEY"):
+    for name in ("SCOPE_API_KEY", "OPENROUTER_API_KEY", "SERPER_API_KEY", "JINA_API_KEY"):
         if os.environ.get(name):
             message = message.replace(os.environ[name], "[redacted]")
     message = re.sub(r"(https?://)[^/\s@]+@", r"\1[redacted]@", message)

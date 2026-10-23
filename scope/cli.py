@@ -13,6 +13,7 @@ from .evaluation import score
 from .datasets import load_questions
 from .tools import DemoTools, WebTools
 from .progress import log, redact
+from .structured import CONTRACT_VERSION
 
 
 def evaluation_summary(records, instances, runs):
@@ -87,8 +88,11 @@ def main():
         provenance["ddgs_backend"] = getattr(getattr(tools, "retrieval", None), "ddgs_backend", None)
         provenance["output_retries"] = cfg.output_retries
         provenance["code_commit"] = os.environ.get("SCOPE_CODE_COMMIT")
+        provenance["output_contract_version"] = CONTRACT_VERSION
+        provenance["openrouter_free_only"] = getattr(backend, 'is_openrouter', False)
         provenance.update(model_api=getattr(backend, 'api_mode', None), response_format=getattr(backend, 'response_mode', None),
-                          context_tokens=getattr(backend, 'context_tokens', None), max_output_tokens=getattr(backend, 'max_output_tokens', None),
+                          context_tokens=getattr(backend, 'context_tokens', None) if getattr(backend, 'api_mode', None) == 'ollama' else None,
+                          max_output_tokens=getattr(backend, 'max_output_tokens', None),
                           capsule_budget=engine.capsule_budget, observation_chunk_chars=cfg.observation_chunk_chars)
         stopped = False
         with target.open("x", encoding="utf-8") as out:

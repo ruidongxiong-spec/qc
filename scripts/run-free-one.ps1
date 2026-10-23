@@ -1,5 +1,7 @@
 param(
-    [string]$Model = 'qwen2.5:7b',
+    [ValidateSet('openrouter', 'ollama')][string]$ModelProvider = 'openrouter',
+    [string]$Model = '',
+    [ValidateSet('', 'json_object', 'json_schema')][string]$ResponseFormat = '',
     [string]$ProxyUrl = 'http://127.0.0.1:7890',
     [string]$SearchBackend = 'auto',
     [string]$InputCsv = 'datasets/hotpotqa_train_clean1000.csv',
@@ -17,6 +19,15 @@ param(
     [switch]$SkipWebCheck
 )
 $ErrorActionPreference = 'Stop'
+if (-not $Model) {
+    $Model = if ($ModelProvider -eq 'openrouter') { 'liquid/lfm-2.5-2.6b' } else { 'qwen2.5:7b' }
+}
+if (-not $ResponseFormat) {
+    $ResponseFormat = if ($ModelProvider -eq 'openrouter') { 'json_object' } else { 'json_schema' }
+}
+if ($PullModel -and $ModelProvider -ne 'ollama') {
+    throw '-PullModel is only for -ModelProvider ollama. OpenRouter models are hosted remotely.'
+}
 function Write-Step([string]$Message) {
     $Line = '[' + (Get-Date -Format o) + '] ' + $Message
     Write-Host $Line
@@ -61,15 +72,19 @@ try {
     $env:SCOPE_SEARCH_PROVIDER = 'ddgs'
     $env:SCOPE_READER_PROVIDER = 'jina'
     $env:SCOPE_DDGS_BACKEND = $SearchBackend
-    $env:SCOPE_BASE_URL = 'http://127.0.0.1:11434/v1'
     $env:SCOPE_MODEL = $Model
-    $env:SCOPE_MODEL_API = 'ollama'
-    $env:SCOPE_RESPONSE_FORMAT = 'json_schema'
+    $env:SCOPE_RESPONSE_FORMAT = $ResponseFormat
     $env:SCOPE_OLLAMA_CONTEXT = [string]$ContextTokens
-    Remove-Item Env:SCOPE_TOKENIZER_PATH -ErrorAction SilentlyContinue
-    Write-Step "Model API=ollama; response=json_schema; context=$ContextTokens; observation_chunk_chars=$ObservationChunkChars"
-    Remove-Item Env:SCOPE_API_KEY -ErrorAction SilentlyContinue
-    Write-Step ('Credentials: local Ollama=no key; DDGS=no key; Jina key configured=' + [bool]$env:JINA_API_KEY)
+    Remove-Item Env:SCOPE_TOKENIZER_PATH, Env:SCOPE_API_KEY -ErrorAction SilentlyContinue
+    if ($ModelProvider -eq 'openrouter') {
+        $env:SCOPE_BASE_URL = 'https://openrouter.ai/api/v1'
+        $env:SCOPE_MODEL_API = 'openai'
+    } else {
+        $env:SCOPE_BASE_URL = 'http://127.0.0.1:11434/v1'
+        $env:SCOPE_MODEL_API = 'ollama'
+    }
+    Write-Step "Model provider=$ModelProvider; response=$ResponseFormat; observation_chunk_chars=$ObservationChunkChars"
+    Write-Step ('Credentials: OpenRouter key configured=' + [bool]$env:OPENROUTER_API_KEY + '; DDGS=no key; Jina key configured=' + [bool]$env:JINA_API_KEY)
     if (Get-Command git -ErrorAction SilentlyContinue) {
         $Commit = git rev-parse HEAD
         if ($LASTEXITCODE -eq 0) {
@@ -97,19 +112,43 @@ try {
         Write-Step 'Web preflight skipped by request; actual evaluation still uses live tools/cache.'
     }
     if ($CheckWebOnly) { return }
-    if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
-        throw 'Install Ollama from https://ollama.com/download/windows and reopen PowerShell.'
-    }
-    if ($PullModel) {
-        Write-Step "[3/5] Downloading Ollama model: $Model"
-        Invoke-Native 'ollama' @('pull', $Model)
+    if ($ModelProvider -eq 'openrouter') {
+        if (-not $env:OPENROUTER_API_KEY) {
+            $SecureKey = Read-Host 'Enter OPENROUTER_API_KEY (hidden; used only in this process)' -AsSecureString
+            $KeyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureKey)
+            try { $env:OPENROUTER_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($KeyPointer) }
+            finally {
+                [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($KeyPointer)
+                $SecureKey.Dispose()
+            }
+        }
+        if (-not $env:OPENROUTER_API_KEY) { throw 'OPENROUTER_API_KEY is empty.' }
+        Write-Step '[3/5] Checking requested OpenRouter model and free pricing'
+        $ModelInfoPath = $Stem + '.model.json'
+        Invoke-Native $Python @('-m', 'scope.openrouter', '--model', $Model, '--output', $ModelInfoPath)
+        $ModelInfo = Get-Content -LiteralPath $ModelInfoPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (-not $TokenizerRepo -and -not $TokenizerPath -and -not $LegacyByteBudget) {
+            $TokenizerRepo = $ModelInfo.hugging_face_id
+            if (-not $TokenizerRepo) {
+                throw 'OpenRouter did not identify a tokenizer repository. Supply -TokenizerRepo or -TokenizerPath for this model; -LegacyByteBudget explicitly selects the old byte budget.'
+            }
+        }
+        Write-Step 'OpenRouter routing: max prompt/completion price=0; no paid fallback.'
+    } else {
+        if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
+            throw 'Install Ollama from https://ollama.com/download/windows and reopen PowerShell.'
+        }
+        if ($PullModel) {
+            Write-Step "[3/5] Downloading Ollama model: $Model"
+            Invoke-Native 'ollama' @('pull', $Model)
+        }
     }
     if ($LegacyByteBudget) {
         Write-Step 'Capsule budget: legacy 512 UTF-8 bytes (explicit compatibility option).'
     } else {
         if (-not $TokenizerPath) {
             if (-not $TokenizerRepo) {
-                if ($Model -ne 'qwen2.5:7b') {
+                if ($ModelProvider -ne 'ollama' -or $Model -ne 'qwen2.5:7b') {
                     throw 'Supply -TokenizerPath or -TokenizerRepo matching the chosen model.'
                 }
                 $TokenizerRepo = 'Qwen/Qwen2.5-7B-Instruct'
@@ -121,7 +160,7 @@ try {
         $env:SCOPE_TOKENIZER_PATH = (Resolve-Path -LiteralPath $TokenizerPath).Path
         Write-Step "Capsule budget: 512 tokenizer tokens; tokenizer=$env:SCOPE_TOKENIZER_PATH"
     }
-    Write-Step "[3/5] Checking local Ollama schema-constrained response (timeout ${ModelTimeout}s)"
+    Write-Step "[3/5] Checking $ModelProvider model JSON response (timeout ${ModelTimeout}s)"
     # A file avoids PowerShell 5 native quoting and pipeline stderr behavior.
     $CheckPath = $Stem + '.check.py'
     @'
