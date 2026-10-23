@@ -60,9 +60,9 @@ def download(source, config, offline):
     return path
 
 
-def write_shards(directory, rows, max_bytes=20 * 1024 * 1024, manifest_root=ROOT / "datasets"):
+def write_shards(directory, rows, max_bytes=20 * 1024 * 1024, manifest_root=ROOT / "datasets", fields=RAW_FIELDS):
     directory.mkdir(parents=True, exist_ok=True)
-    header = csv_bytes([], RAW_FIELDS)
+    header = csv_bytes([], fields)
     buffer, count, outputs = bytearray(header), 0, []
 
     def flush():
@@ -74,7 +74,7 @@ def write_shards(directory, rows, max_bytes=20 * 1024 * 1024, manifest_root=ROOT
 
     for row in rows:
         out = io.StringIO(newline="")
-        csv.DictWriter(out, fieldnames=RAW_FIELDS, lineterminator="\n").writerow(row)
+        csv.DictWriter(out, fieldnames=fields, lineterminator="\n").writerow(row)
         data = out.getvalue().encode("utf-8")
         if len(data) + len(header) > max_bytes:
             raise ValueError("One record exceeds shard size")
@@ -136,14 +136,6 @@ def main():
         raise ValueError("Selected sample differs from the original review snapshot")
     preserve_write(ROOT / "datasets/hotpotqa_train_sample1000.csv", data)
     outputs.append(dict(file="hotpotqa_train_sample1000.csv", rows=1000, bytes=len(data), sha256=digest(data)))
-    def load(name):
-        with (ROOT / "datasets" / name).open(encoding="utf-8-sig", newline="") as source:
-            return list(csv.DictReader(source))
-    # Preserve the exact Bamboogle row values, order and source file.
-    combined = selected + load("musique_sample1000.csv") + load("bamboogle.csv")
-    data = csv_bytes(combined)
-    preserve_write(ROOT / "datasets/scope_selected2125.csv", data)
-    outputs.append(dict(file="scope_selected2125.csv", rows=2125, bytes=len(data), sha256=digest(data)))
     manifest = dict(schema_version=1, source=config, counts=counts, encoding="utf-8-sig", newline="LF",
                     full_view="official/hotpotqa_fullwiki/<split>/part-*.csv; every original column including context",
                     qa_view="root hotpotqa_fullwiki_<split>.csv; all rows, context omitted",

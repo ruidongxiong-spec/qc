@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "inputs": [
+    {
+      "file": "hotpotqa_train_sample1000.csv",
+      "rows": 1000,
+      "sha256": "13c4784ee92d61e84d7745fd9655150245853d718252c03e5b2912ca912d33a8"
+    },
+    {
+      "file": "musique_ans_dev_sample1000.csv",
+      "rows": 1000,
+      "sha256": "6346c9ef79261261610c9e1176d419dcc8ae081c3042455aec4d9fec3aa6ec01"
+    },
+    {
+      "file": "bamboogle.csv",
+      "rows": 125,
+      "sha256": "f364d3c6d4d6c01b9b391ff193134083209c9a4c590210eaafd60977ed36e177"
+    }
+  ],
+  "quotas": {
+    "hotpotqa": {
+      "easy": 500,
+      "medium": 300,
+      "hard": 200
+    },
+    "musique": {
+      "2": 600,
+      "3": 400
+    },
+    "bamboogle": 125
+  },
+  "semantic_review_status": "paused_by_user; no exclusions applied",
+  "output": {
+    "file": "scope_selected2125.csv",
+    "rows": 2125,
+    "bytes": 589398,
+    "sha256": "fbe930e6f937e1cdf348352d4620d48e57303efbf5683791b1a7dc5419f537ed"
+  }
+}

@@ -1,0 +1,538 @@
+{
+  "schema_version": 1,
+  "source": {
+    "schema_version": 1,
+    "publisher": "https://github.com/StonyBrookNLP/musique",
+    "publisher_commit": "922ac98f19a201998dbdae6d7f2887a5258dbdeb",
+    "license": "CC-BY-4.0",
+    "archive": {
+      "url": "https://drive.usercontent.google.com/download?id=1tGdADlNjWFaHLeZZGShh2IRcpO6Lv24h&export=download&confirm=t",
+      "publisher_link": "https://drive.google.com/file/d/1tGdADlNjWFaHLeZZGShh2IRcpO6Lv24h/view?usp=sharing",
+      "bytes": 272049578,
+      "sha256": "98f839bf2fd5319f5c688aed77901a6d5c30b3b9f9f691ab9a8ecafb045ee0cd"
+    },
+    "members": {
+      "data/dev_test_singlehop_questions_v1.0.json": {
+        "bytes": 915921,
+        "sha256": "013be00ab914799891e5ae40de6cdc1baf03aaffd1f3ce4bf0de796020069613"
+      },
+      "data/musique_ans_v1.0_dev.jsonl": {
+        "bytes": 30439728,
+        "sha256": "15fa63794d18a94ce12411aca6e2327e65b6e83b0b1490efab3f1962e48abf3b",
+        "rows": 2417,
+        "hops": {
+          "2": 1252,
+          "3": 760,
+          "4": 405
+        },
+        "fields": [
+          "answer",
+          "answer_aliases",
+          "answerable",
+          "id",
+          "paragraphs",
+          "question",
+          "question_decomposition"
+        ],
+        "answerable": {
+          "True": 2417
+        }
+      },
+      "data/musique_ans_v1.0_test.jsonl": {
+        "bytes": 28366572,
+        "sha256": "92ee3067957b8ebce885baa71156a7c0c29f3bc72cca04510aef506911dd768f",
+        "rows": 2459,
+        "hops": {
+          "2": 1271,
+          "3": 763,
+          "4": 425
+        },
+        "fields": [
+          "id",
+          "paragraphs",
+          "question"
+        ],
+        "answerable": {
+          "None": 2459
+        }
+      },
+      "data/musique_ans_v1.0_train.jsonl": {
+        "bytes": 241046755,
+        "sha256": "83a75b1e11e4e9bb8f8308e72ac40ca617ae4431b3a0d955b61cab259248490a",
+        "rows": 19938,
+        "hops": {
+          "2": 14376,
+          "3": 4387,
+          "4": 1175
+        },
+        "fields": [
+          "answer",
+          "answer_aliases",
+          "answerable",
+          "id",
+          "paragraphs",
+          "question",
+          "question_decomposition"
+        ],
+        "answerable": {
+          "True": 19938
+        }
+      },
+      "data/musique_full_v1.0_dev.jsonl": {
+        "bytes": 59422562,
+        "sha256": "8cab31d56a3a1c4ef491b205a8dab3f1ac9c66e472098c6cf1de4e20294f7a4a",
+        "rows": 4834,
+        "hops": {
+          "2": 2504,
+          "4": 810,
+          "3": 1520
+        },
+        "fields": [
+          "answer",
+          "answer_aliases",
+          "answerable",
+          "id",
+          "paragraphs",
+          "question",
+          "question_decomposition"
+        ],
+        "answerable": {
+          "False": 2417,
+          "True": 2417
+        }
+      },
+      "data/musique_full_v1.0_test.jsonl": {
+        "bytes": 55558292,
+        "sha256": "01d7b0f752bdc1fc98856d605560e021a89be903baeb9daff11adeb7fac61328",
+        "rows": 4918,
+        "hops": {
+          "2": 2542,
+          "4": 850,
+          "3": 1526
+        },
+        "fields": [
+          "id",
+          "paragraphs",
+          "question"
+        ],
+        "answerable": {
+          "None": 4918
+        }
+      },
+      "data/musique_full_v1.0_train.jsonl": {
+        "bytes": 476696984,
+        "sha256": "b1cd998f7e0e2838d6fda024e4ad1eb0e7fc3edefdadb0bd9b5b10b0907f2034",
+        "rows": 39876,
+        "hops": {
+          "2": 28752,
+          "3": 8774,
+          "4": 2350
+        },
+        "fields": [
+          "answer",
+          "answer_aliases",
+          "answerable",
+          "id",
+          "paragraphs",
+          "question",
+          "question_decomposition"
+        ],
+        "answerable": {
+          "False": 19938,
+          "True": 19938
+        }
+      }
+    }
+  },
+  "counts": {
+    "ans/train": {
+      "rows": 19938,
+      "hops": {
+        "2": 14376,
+        "3": 4387,
+        "4": 1175
+      },
+      "answerable": {
+        "True": 19938
+      }
+    },
+    "ans/dev": {
+      "rows": 2417,
+      "hops": {
+        "2": 1252,
+        "3": 760,
+        "4": 405
+      },
+      "answerable": {
+        "True": 2417
+      }
+    },
+    "ans/test": {
+      "rows": 2459,
+      "hops": {
+        "2": 1271,
+        "3": 763,
+        "4": 425
+      },
+      "answerable": {
+        "None": 2459
+      }
+    },
+    "full/train": {
+      "rows": 39876,
+      "hops": {
+        "2": 28752,
+        "3": 8774,
+        "4": 2350
+      },
+      "answerable": {
+        "False": 19938,
+        "True": 19938
+      }
+    },
+    "full/dev": {
+      "rows": 4834,
+      "hops": {
+        "2": 2504,
+        "4": 810,
+        "3": 1520
+      },
+      "answerable": {
+        "False": 2417,
+        "True": 2417
+      }
+    },
+    "full/test": {
+      "rows": 4918,
+      "hops": {
+        "2": 2542,
+        "4": 850,
+        "3": 1526
+      },
+      "answerable": {
+        "None": 4918
+      }
+    }
+  },
+  "outputs": [
+    {
+      "file": "official/musique_ans/train/part-0001.csv",
+      "rows": 1716,
+      "bytes": 20963174,
+      "sha256": "77a4428b19e7f83651a7cae5d3f8a5f01cc2f9d96063cd90dac550c99d4e23df"
+    },
+    {
+      "file": "official/musique_ans/train/part-0002.csv",
+      "rows": 1705,
+      "bytes": 20962819,
+      "sha256": "dddf0dc975b71cbe7d3456f1d5585e30fbd6e763c258a992bf61e1d22eb49794"
+    },
+    {
+      "file": "official/musique_ans/train/part-0003.csv",
+      "rows": 1828,
+      "bytes": 20970120,
+      "sha256": "be86cb26f92e0f656a6fda8efaa0b0e588e00e0086e90860b79455ccb05cb0e8"
+    },
+    {
+      "file": "official/musique_ans/train/part-0004.csv",
+      "rows": 1818,
+      "bytes": 20963062,
+      "sha256": "2a229af9cdd279ba45eede170d6b137fe39f8ef25c8962c23796082ee7be61f2"
+    },
+    {
+      "file": "official/musique_ans/train/part-0005.csv",
+      "rows": 1769,
+      "bytes": 20971146,
+      "sha256": "72f371f2357a0238ac13c7b97c559cb301a34d323f0c1284040d8a162374f1d2"
+    },
+    {
+      "file": "official/musique_ans/train/part-0006.csv",
+      "rows": 1768,
+      "bytes": 20969036,
+      "sha256": "1f303eb8f19547893822219b187676cdfb2b6b3ec2c3c8c12b549017777c4e28"
+    },
+    {
+      "file": "official/musique_ans/train/part-0007.csv",
+      "rows": 1759,
+      "bytes": 20961635,
+      "sha256": "ccb28394eab4667553ffeb65922592e0cec4119e94fece94599f1e68f18a96f4"
+    },
+    {
+      "file": "official/musique_ans/train/part-0008.csv",
+      "rows": 1715,
+      "bytes": 20965984,
+      "sha256": "9b8dd700e3990f64660df6ac19946cab28fd21546ea5a7e188efcdbc8a23d92a"
+    },
+    {
+      "file": "official/musique_ans/train/part-0009.csv",
+      "rows": 1652,
+      "bytes": 20961793,
+      "sha256": "3419c214774d1de5ecb09ae47f1af3f1a8c5a4643eb3754dd56d8e39a8375d53"
+    },
+    {
+      "file": "official/musique_ans/train/part-0010.csv",
+      "rows": 1666,
+      "bytes": 20967307,
+      "sha256": "77c25bced638f00b543133f5a9c05863541855ce2b1ba14309eb115295fb55e8"
+    },
+    {
+      "file": "official/musique_ans/train/part-0011.csv",
+      "rows": 1571,
+      "bytes": 20967798,
+      "sha256": "9c26eb5e91ee01cc57dcf3ea3bebcd61fbdbee4df32d27a4417734f8271a2ea9"
+    },
+    {
+      "file": "official/musique_ans/train/part-0012.csv",
+      "rows": 971,
+      "bytes": 12473277,
+      "sha256": "7b6383e10d12abf7279e7bd41c753a440a190e86880d6e3d6c0717952006da55"
+    },
+    {
+      "file": "musique_ans_train.csv",
+      "rows": 19938,
+      "bytes": 5792759,
+      "sha256": "f5bb9bcf42d954c652f08bc765e2d6f2bc941e7174acfaff07c069f6fd4ecfa7"
+    },
+    {
+      "file": "official/musique_ans/dev/part-0001.csv",
+      "rows": 1694,
+      "bytes": 20957505,
+      "sha256": "c58ab374b6c62f6cfcee63c6eae6aba8f3451d7f2d8363272e2bfc34ec0dd02d"
+    },
+    {
+      "file": "official/musique_ans/dev/part-0002.csv",
+      "rows": 723,
+      "bytes": 9734421,
+      "sha256": "fda37b4c16f72d1ce7d968f8f804c0457375d6e7ea32a40404d33ea72dd86953"
+    },
+    {
+      "file": "musique_ans_dev.csv",
+      "rows": 2417,
+      "bytes": 778487,
+      "sha256": "d8f54635abfea9df1d5f732ee7a34946d7fd8d6a6171b3993254b393c11a1a3b"
+    },
+    {
+      "file": "official/musique_ans/test/part-0001.csv",
+      "rows": 1841,
+      "bytes": 20959802,
+      "sha256": "baeb42fe1ba5027ef7f7d11731d6eabaa98d686d0f13ed9807b471f00778134b"
+    },
+    {
+      "file": "official/musique_ans/test/part-0002.csv",
+      "rows": 618,
+      "bytes": 7895256,
+      "sha256": "248337e4b99a948469a2d8af938b034dc5e804a23506d3f4fbf07b7766f7102e"
+    },
+    {
+      "file": "musique_ans_test.csv",
+      "rows": 2459,
+      "bytes": 398068,
+      "sha256": "a5277b90f910feaac85c35df3c74c6712a0031721e4dd1c7d405437dff74ebb3"
+    },
+    {
+      "file": "official/musique_full/train/part-0001.csv",
+      "rows": 1740,
+      "bytes": 20965676,
+      "sha256": "01e561aaafc834ad59b5f5d239382fea89e7f51989f5fbd8a710d4331e3c982b"
+    },
+    {
+      "file": "official/musique_full/train/part-0002.csv",
+      "rows": 1747,
+      "bytes": 20969312,
+      "sha256": "5379d0ff2bcd2d04cd48c43a864aa1ecfc81f56e847a8ffac2ab7bca21760453"
+    },
+    {
+      "file": "official/musique_full/train/part-0003.csv",
+      "rows": 1732,
+      "bytes": 20963702,
+      "sha256": "cbc188876b37f856d2947610f8b275423d17c0945ebaf84e067df5173621534c"
+    },
+    {
+      "file": "official/musique_full/train/part-0004.csv",
+      "rows": 1751,
+      "bytes": 20963928,
+      "sha256": "35683fc32c625faaecd55063adf180396006b7e61813607d112148aa0987fa49"
+    },
+    {
+      "file": "official/musique_full/train/part-0005.csv",
+      "rows": 1743,
+      "bytes": 20970367,
+      "sha256": "2cc6de1b5399dfb874c1763d5894c1e574299eb090970e259d98434191a088b0"
+    },
+    {
+      "file": "official/musique_full/train/part-0006.csv",
+      "rows": 1744,
+      "bytes": 20963121,
+      "sha256": "6b244e22b24db6aa7ae90bc2f16594cf2cad6b7630e18b82d88df925295a89f7"
+    },
+    {
+      "file": "official/musique_full/train/part-0007.csv",
+      "rows": 1734,
+      "bytes": 20960936,
+      "sha256": "9228d5c91fd907e2b88c863ee9196cfeeafd626c84c9fca20a299fd50212e2e9"
+    },
+    {
+      "file": "official/musique_full/train/part-0008.csv",
+      "rows": 1749,
+      "bytes": 20961185,
+      "sha256": "d088850393c6642c43146e17177e8203ab87698c792842e3569f9e92e896baa9"
+    },
+    {
+      "file": "official/musique_full/train/part-0009.csv",
+      "rows": 1732,
+      "bytes": 20964946,
+      "sha256": "d557ba9cf1e711e7d5ccc9c58837b88e56f3946206c62cf813c4f4fe3149b323"
+    },
+    {
+      "file": "official/musique_full/train/part-0010.csv",
+      "rows": 1744,
+      "bytes": 20971440,
+      "sha256": "57a4f31d00c78aa57b034a6a618f8de79cfddf936dc2e44426d489c84e4a31e3"
+    },
+    {
+      "file": "official/musique_full/train/part-0011.csv",
+      "rows": 1737,
+      "bytes": 20967948,
+      "sha256": "fb5d0da968228d1b2db5319b9169c9d8c3c1033ee7154b3913928cc1d1b03c5c"
+    },
+    {
+      "file": "official/musique_full/train/part-0012.csv",
+      "rows": 1735,
+      "bytes": 20967616,
+      "sha256": "6ec95951f2fe18b45bd7c4ab790a92b6646b4d7acf17a23f4482076d978f8985"
+    },
+    {
+      "file": "official/musique_full/train/part-0013.csv",
+      "rows": 1731,
+      "bytes": 20960865,
+      "sha256": "eb0e7824d0dbcd845a1750521a3ad592fe42d1b9ee6f31417dcaeb2c1a5042df"
+    },
+    {
+      "file": "official/musique_full/train/part-0014.csv",
+      "rows": 1738,
+      "bytes": 20964625,
+      "sha256": "79aa514088569df8bee04e56c76d0782e712adf52dd34397fcda21e9ddd85784"
+    },
+    {
+      "file": "official/musique_full/train/part-0015.csv",
+      "rows": 1733,
+      "bytes": 20966197,
+      "sha256": "deb43b50ab7efcffbdd0a16abcc54a30d01c231b80165902e1a66617607edb5d"
+    },
+    {
+      "file": "official/musique_full/train/part-0016.csv",
+      "rows": 1732,
+      "bytes": 20963319,
+      "sha256": "d84d71e6b5b3dea85ecf9359332055951115d442ed77888fd826e44f0bbf80b0"
+    },
+    {
+      "file": "official/musique_full/train/part-0017.csv",
+      "rows": 1733,
+      "bytes": 20962069,
+      "sha256": "a69fa834baa3cafc443b8e1f84fb5eeda81d21d1b3615bc42918bd5181736381"
+    },
+    {
+      "file": "official/musique_full/train/part-0018.csv",
+      "rows": 1745,
+      "bytes": 20962204,
+      "sha256": "ef4aa4a1eb1b73e55d9241b916bb43bb67705874e1832bf8dd913d920890655f"
+    },
+    {
+      "file": "official/musique_full/train/part-0019.csv",
+      "rows": 1755,
+      "bytes": 20962882,
+      "sha256": "74358fa5e44a875dde29ffa02fdb52d2b5a88e0858fa7b756f686afa8a378074"
+    },
+    {
+      "file": "official/musique_full/train/part-0020.csv",
+      "rows": 1731,
+      "bytes": 20960976,
+      "sha256": "b8bcc698d3eaa838a66cff2e0683ffde67f617420b21fdc3685a114a8dc8a82b"
+    },
+    {
+      "file": "official/musique_full/train/part-0021.csv",
+      "rows": 1741,
+      "bytes": 20959749,
+      "sha256": "96ba9669ccfa8bc0265394bfcd8b267e6e6ecbd9f5b2ee5c65c43f0c1183ffab"
+    },
+    {
+      "file": "official/musique_full/train/part-0022.csv",
+      "rows": 1735,
+      "bytes": 20967256,
+      "sha256": "e2ec05f214fbbafa9bb3c13c79e6c2cb048bba28c3e997c7e33af6b4f1376eed"
+    },
+    {
+      "file": "official/musique_full/train/part-0023.csv",
+      "rows": 1614,
+      "bytes": 19664166,
+      "sha256": "bdb9d389fd1e2ff5f230557d54c1ead4decc2eb9e3407a93a589fa0c53b1434b"
+    },
+    {
+      "file": "official/musique_full/dev/part-0001.csv",
+      "rows": 1704,
+      "bytes": 20963331,
+      "sha256": "2e84ede612a0fea51bbc3830ac6eb49bd38fa785e025f9717a4f8dd4dc7645e8"
+    },
+    {
+      "file": "official/musique_full/dev/part-0002.csv",
+      "rows": 1706,
+      "bytes": 20964353,
+      "sha256": "8909f3faea47355774d805d979252b3a3516fa6bfe602c0e3be0a012599e5c78"
+    },
+    {
+      "file": "official/musique_full/dev/part-0003.csv",
+      "rows": 1424,
+      "bytes": 17996800,
+      "sha256": "09379c98f63fec24a92fabcea872a7ea1139d1edb433e4aa4f34770733df340f"
+    },
+    {
+      "file": "official/musique_full/test/part-0001.csv",
+      "rows": 1831,
+      "bytes": 20965668,
+      "sha256": "2f2672fe4378715aa24afb233fc28293085f406a7a205a1cf64f50b06a78270d"
+    },
+    {
+      "file": "official/musique_full/test/part-0002.csv",
+      "rows": 1847,
+      "bytes": 20969599,
+      "sha256": "7c484616bdecf4afb17e974cb935c682f44eb1728b8ddd3d52e9c77c05cf866f"
+    },
+    {
+      "file": "official/musique_full/test/part-0003.csv",
+      "rows": 1240,
+      "bytes": 14607125,
+      "sha256": "4ba2596017c9df9db2f13de81d5228c01592de6312e86cf5423c95311a675e47"
+    },
+    {
+      "file": "musique_ans_dev_2_3hop.csv",
+      "rows": 2012,
+      "bytes": 598883,
+      "sha256": "fbb7703bd02761d96f0c0f11d08eda13c871a55b34eae67d0c5027538ee424bb"
+    },
+    {
+      "file": "musique_ans_dev_sample1000.csv",
+      "rows": 1000,
+      "bytes": 299684,
+      "sha256": "6346c9ef79261261610c9e1176d419dcc8ae081c3042455aec4d9fec3aa6ec01"
+    },
+    {
+      "file": "official/musique_dev_test_singlehop_questions.csv",
+      "rows": 6371,
+      "bytes": 754272,
+      "sha256": "dec229d2e9ecd116cd823d0161fc9cfd35b1eb2f64f694da99fd8831f97ec7da"
+    }
+  ],
+  "encoding": "utf-8-sig",
+  "newline": "LF",
+  "seed": "scope-musique-ans-dev-v2-seed42",
+  "quotas": {
+    "2": 600,
+    "3": 400
+  },
+  "sample_source": "ans/dev",
+  "semantic_review_status": "paused_by_user; no exclusions applied",
+  "full_view": "official/musique_{ans,full}/<split>/part-*.csv; all original fields recoverable",
+  "qa_view": "musique_ans_{train,dev,test}.csv; all Ans rows, context omitted; test has no answers",
+  "full_unanswerable": "MuSiQue-Full deliberately includes unanswerable contexts; do not score as ordinary answerable QA",
+  "paper_exact_subset": false
+}

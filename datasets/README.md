@@ -1,5 +1,7 @@
 # SCOPE 论文相关公开数据：本地 CSV
 
+**当前 MuSiQue 默认：`musique_ans_dev_sample1000.csv`，2-hop 600 + 3-hop 400。** 作者完整 ZIP 的 Ans/Full train/dev/test 均已导出原字段 CSV，见 [完整来源、文件与重建说明](../docs/musique-datasets.md)；`musique_sources.json`、`musique_manifest.json` 固定原始及输出散列。`scope_selected2125.csv` 已使用新版 MuSiQue 样本，合并来源见 `selection_manifest.json`。下表为保留的旧基线，不能误当当前默认。
+
 这里包含真实公开问题/参考答案，不是生成的演示数据。CSV 已纳入仓库，正常 clone/下载代码包后即可使用，无需访问 Google Drive。文件采用 UTF-8 BOM + LF，可由 Excel 和本项目读取器加载。
 
 **这些是公开开发集/镜像导出的 QA 视图，以及本项目自行固定的评测抽样；不是 SCOPE 作者提供的原始实验清单。** 论文没有给出两份 1,000 题的 ID、种子、划分和模型提示词，因此不能承诺精确复现论文表格。
@@ -18,15 +20,15 @@
 
 最新已补齐官方 fullwiki **train 90,447 / validation 7,405 / test 7,405** 的 QA CSV，以及 `official/hotpotqa_fullwiki/` 下保留 context 的完整原字段分片。新抽样为 `hotpotqa_train_sample1000.csv`（**easy 500 / medium 300 / hard 200**），合并版为 `scope_selected2125.csv`。**用户已暂停审阅，当前抽样未应用排除建议**；Bamboogle 保持不变。见 [新数据口径与重建方式](../docs/hotpotqa-sampling.md)、[项目进度和后续任务](../docs/project-status.md)。新散列见 `hotpotqa_fullwiki_manifest.json`，上表旧基线仍保留。
 
-## GitHub 来源及版本
+## 旧基线 GitHub 来源及版本
 
 下载时固定 Git commit，原文件大小、SHA-256、编码、路径和原始作者仓库见 [sources.json](sources.json)。导出 CSV 的行数、SHA-256 和组别分布见 [manifest.json](manifest.json)。
 
 - **HotpotQA**：作者 [hotpotqa/hotpot](https://github.com/hotpotqa/hotpot) 发布数据说明；本次原 JSON 来自 [eduardokruel/mscthesis](https://github.com/eduardokruel/mscthesis/blob/2b996279ec7b13031d4ee064c9a41218991d79a7/datasets/hotpotqa/hotpot_dev_distractor_v1.json) 的固定版本镜像。保留原 `_id`、question、answer、level、type、supporting_facts。
-- **MuSiQue**：作者 [StonyBrookNLP/musique](https://github.com/StonyBrookNLP/musique)；本次使用 [sonnguyen112/EvidencePath](https://github.com/sonnguyen112/EvidencePath/blob/db1a6bdd1b1d818e578ab1ab2c0a9e41ac0a9d15/artifacts/musique-ans/questions.jsonl) 已规范化的 2,417 题导出。原始 raw JSONL 使用 Git LFS，本次未成功下载 LFS 对象，不能将此导出描述为与官方原始 JSONL 字节相同。保留 question_id、question、可用 answers、support_units；未提供的原始 answer_aliases/分解信息无法补造。hops 从保留的官方 ID 前缀提取。
+- **旧 MuSiQue 镜像基线**：作者 [StonyBrookNLP/musique](https://github.com/StonyBrookNLP/musique)；旧版本使用 [sonnguyen112/EvidencePath](https://github.com/sonnguyen112/EvidencePath/blob/db1a6bdd1b1d818e578ab1ab2c0a9e41ac0a9d15/artifacts/musique-ans/questions.jsonl) 已规范化的 2,417 题导出。旧镜像原始 raw JSONL 使用 Git LFS，当时未成功下载 LFS 对象，不能将此导出描述为与官方原始 JSONL 字节相同。保留 question_id、question、可用 answers、support_units；未提供的原始 answer_aliases/分解信息无法补造。hops 从保留的官方 ID 前缀提取。
 - **Bamboogle**：作者 [ofirpress/self-ask](https://github.com/ofirpress/self-ask/blob/main/datasets/bamboogle.md) 指向原始表格；GitHub CSV 镜像来自 [sunlab-osu/Understanding-CoT](https://github.com/sunlab-osu/Understanding-CoT/blob/f03070c45dace69892fc594dfb3cf6c2afc657f9/Bamboogle%20Prerelease%20-%20Sheet1.csv)。原 CSV 为 Windows-1252 编码，转为 UTF-8。原文件无 ID，`bamboogle-001` 等由原始行号生成，不是作者原始 ID。
 
-作者分发端点（CMU / Google Drive / Google Sheets）在本云环境下受到出口策略限制。因此使用以上明确标记的 GitHub 镜像，未把镜像内容宣称为已与官方分发文件独立逐字核验。固定 SHA-256 可验证本次快照的重复获取完整性，不能替代官方来源认证。
+上述旧基线准备时作者分发端点（CMU / Google Drive / Google Sheets）不可访问；本轮已直接取得 MuSiQue 作者 ZIP，新版完整导出不再依赖该 QA 镜像。因此使用以上明确标记的 GitHub 镜像，未把镜像内容宣称为已与官方分发文件独立逐字核验。固定 SHA-256 可验证本次快照的重复获取完整性，不能替代官方来源认证。
 
 ## 字段与使用
 
@@ -34,12 +36,12 @@
 
 空的 level/hops 表示来源没有明确标注；不推测、不补造。HotpotQA 不强制填 `hops=2`，因为数据文件没有逐题该字段。MuSiQue support_units 为镜像文档 ID/段落引用，与 HotpotQA 的 `[title,sentence_id]` 不是同一格式。`supporting_facts_json` 用于审计，不是统一的支持事实评测格式。
 
-CSV 是问题/答案及元数据视图，**不包含原数据的全部 context/documents 正文**，也不能替代官方训练集。当前系统通过公开工具检索证据；只把 question 交给 Agent，answer/aliases 用于运行结束后的评分，避免答案泄漏。
+根目录轻量 CSV 是问题/答案及元数据视图；`official/` 下的新分片 CSV 保留全部原始 context/documents 正文、分解与别名，可恢复原记录。当前系统通过公开工具检索证据；只把 question 交给 Agent，answer/aliases 用于运行结束后的评分，避免答案泄漏。
 
 ```bash
 # 先确认模型、密钥、工具网络已配置；以下会实际调用模型。
 python -m scope.cli evaluate --input datasets/bamboogle.csv --limit 5 --runs 1 --output runs/bamboogle-smoke.jsonl
-python -m scope.benchmark --models examples/models.json --input datasets/scope_public_baseline2125.csv --output runs/public-baseline --runs 3
+python -m scope.benchmark --models examples/models.json --input datasets/scope_selected2125.csv --output runs/public-baseline --runs 3
 ```
 
 模型矩阵需先替换占位 model ID。当前未对这些数据调用真实模型，也不报告准确率。已有 JSONL 输入仍兼容。
@@ -53,7 +55,7 @@ python scripts/prepare_datasets.py --offline # 使用已校验 raw 缓存，不�
 
 `raw/` 为本地生成缓存，不进 Git，下载代码包也不含这约 100 MB 原始缓存。CSV 已经存在，运行评测无需重新准备。脚本拒绝覆盖内容不同的已有文件，也不会使用校验失败的下载。依赖只需 Python 标准库。
 
-抽样顺序为 `SHA256("scope-public-baseline-v1-seed42:" + id)` 升序，各组取前 N；MuSiQue 分组各取 500。这个种子和方案是本项目定义的，不是论文给出的。manifest 固定输出散列；`.gitattributes` 固定 LF，防止 Windows 换行转换改变数据快照。
+旧基线抽样顺序为 `SHA256("scope-public-baseline-v1-seed42:" + id)` 升序，各组取前 N；MuSiQue 分组各取 500。这个种子和方案是本项目定义的，不是论文给出的。manifest 固定输出散列；`.gitattributes` 固定 LF，防止 Windows 换行转换改变数据快照。
 
 ## 许可与引用
 

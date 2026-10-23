@@ -62,7 +62,7 @@ class OfficialExportTests(unittest.TestCase):
                          (ROOT / "datasets/hotpotqa_train_review/initial1000.csv").read_bytes())
         combined = load("scope_selected2125.csv")
         self.assertEqual(combined[:1000], selected)
-        self.assertEqual(combined[1000:2000], load("musique_sample1000.csv"))
+        self.assertEqual(combined[1000:2000], load("musique_ans_dev_sample1000.csv"))
         self.assertEqual(combined[2000:], load("bamboogle.csv"))
         self.assertFalse((ROOT / "datasets/hotpotqa_train_review/hotpotqa_train_clean1000.csv").exists())
 

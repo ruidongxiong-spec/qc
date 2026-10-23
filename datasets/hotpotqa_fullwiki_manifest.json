@@ -303,12 +303,6 @@
       "rows": 1000,
       "bytes": 273439,
       "sha256": "13c4784ee92d61e84d7745fd9655150245853d718252c03e5b2912ca912d33a8"
-    },
-    {
-      "file": "scope_selected2125.csv",
-      "rows": 2125,
-      "bytes": 576468,
-      "sha256": "75b2d1912ab838bd3a28e76cdd44ab1b56fe0910e604c433c4350f1efed915d0"
     }
   ]
 }

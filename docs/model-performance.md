@@ -53,6 +53,6 @@ python -m scope.report --input runs/model-comparison/summary.json --output runs/
 
 ## 当前仓库内可用数据
 
-公开数据 CSV 已落地，详见 [`../datasets/README.md`](../datasets/README.md)。可直接用 `--input datasets/bamboogle.csv` 或 `--input datasets/scope_public_baseline2125.csv`。合并版用于工程基线；原始论文的分组/抽样仍未知。当前 HotpotQA dev 只有 hard 标签，不能生成论文 Easy/Medium 两组的结果。MuSiQue 的 1,000 题固定为 2-hop、3-hop 各 500，不是论文作者抽样。
+公开完整数据和抽样 CSV 已落地，详见 [`../datasets/README.md`](../datasets/README.md)。当前统一输入为 `--input datasets/scope_selected2125.csv`：HotpotQA fullwiki train 按 easy 500 / medium 300 / hard 200，MuSiQue-Ans dev 按 2-hop 600 / 3-hop 400，Bamboogle 125。也可分别输入 `hotpotqa_train_sample1000.csv`、`musique_ans_dev_sample1000.csv` 和 `bamboogle.csv`。两份 1,000 题都是本项目固定抽样，未声称匹配作者原始 ID，用户已暂停语义清理。`scope_public_baseline2125.csv` 与旧 MuSiQue 500/500 仅保留追溯。
 
 最新批测输入使用 `datasets/scope_selected2125.csv`：HotpotQA 已调整为官方 train 原标签 easy 500 / medium 300 / hard 200。旧合并版仍是 dev hard 基线。用户已暂停清理，不能称为清理通过；来源和限制见 [数据口径](hotpotqa-sampling.md)。未跑真实模型前不报告排名。

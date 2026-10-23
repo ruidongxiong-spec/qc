@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "publisher": "https://github.com/StonyBrookNLP/musique",
+  "publisher_commit": "922ac98f19a201998dbdae6d7f2887a5258dbdeb",
+  "license": "CC-BY-4.0",
+  "archive": {
+    "url": "https://drive.usercontent.google.com/download?id=1tGdADlNjWFaHLeZZGShh2IRcpO6Lv24h&export=download&confirm=t",
+    "publisher_link": "https://drive.google.com/file/d/1tGdADlNjWFaHLeZZGShh2IRcpO6Lv24h/view?usp=sharing",
+    "bytes": 272049578,
+    "sha256": "98f839bf2fd5319f5c688aed77901a6d5c30b3b9f9f691ab9a8ecafb045ee0cd"
+  },
+  "members": {
+    "data/dev_test_singlehop_questions_v1.0.json": {
+      "bytes": 915921,
+      "sha256": "013be00ab914799891e5ae40de6cdc1baf03aaffd1f3ce4bf0de796020069613"
+    },
+    "data/musique_ans_v1.0_dev.jsonl": {
+      "bytes": 30439728,
+      "sha256": "15fa63794d18a94ce12411aca6e2327e65b6e83b0b1490efab3f1962e48abf3b",
+      "rows": 2417,
+      "hops": {
+        "2": 1252,
+        "3": 760,
+        "4": 405
+      },
+      "fields": [
+        "answer",
+        "answer_aliases",
+        "answerable",
+        "id",
+        "paragraphs",
+        "question",
+        "question_decomposition"
+      ],
+      "answerable": {
+        "True": 2417
+      }
+    },
+    "data/musique_ans_v1.0_test.jsonl": {
+      "bytes": 28366572,
+      "sha256": "92ee3067957b8ebce885baa71156a7c0c29f3bc72cca04510aef506911dd768f",
+      "rows": 2459,
+      "hops": {
+        "2": 1271,
+        "3": 763,
+        "4": 425
+      },
+      "fields": [
+        "id",
+        "paragraphs",
+        "question"
+      ],
+      "answerable": {
+        "None": 2459
+      }
+    },
+    "data/musique_ans_v1.0_train.jsonl": {
+      "bytes": 241046755,
+      "sha256": "83a75b1e11e4e9bb8f8308e72ac40ca617ae4431b3a0d955b61cab259248490a",
+      "rows": 19938,
+      "hops": {
+        "2": 14376,
+        "3": 4387,
+        "4": 1175
+      },
+      "fields": [
+        "answer",
+        "answer_aliases",
+        "answerable",
+        "id",
+        "paragraphs",
+        "question",
+        "question_decomposition"
+      ],
+      "answerable": {
+        "True": 19938
+      }
+    },
+    "data/musique_full_v1.0_dev.jsonl": {
+      "bytes": 59422562,
+      "sha256": "8cab31d56a3a1c4ef491b205a8dab3f1ac9c66e472098c6cf1de4e20294f7a4a",
+      "rows": 4834,
+      "hops": {
+        "2": 2504,
+        "4": 810,
+        "3": 1520
+      },
+      "fields": [
+        "answer",
+        "answer_aliases",
+        "answerable",
+        "id",
+        "paragraphs",
+        "question",
+        "question_decomposition"
+      ],
+      "answerable": {
+        "False": 2417,
+        "True": 2417
+      }
+    },
+    "data/musique_full_v1.0_test.jsonl": {
+      "bytes": 55558292,
+      "sha256": "01d7b0f752bdc1fc98856d605560e021a89be903baeb9daff11adeb7fac61328",
+      "rows": 4918,
+      "hops": {
+        "2": 2542,
+        "4": 850,
+        "3": 1526
+      },
+      "fields": [
+        "id",
+        "paragraphs",
+        "question"
+      ],
+      "answerable": {
+        "None": 4918
+      }
+    },
+    "data/musique_full_v1.0_train.jsonl": {
+      "bytes": 476696984,
+      "sha256": "b1cd998f7e0e2838d6fda024e4ad1eb0e7fc3edefdadb0bd9b5b10b0907f2034",
+      "rows": 39876,
+      "hops": {
+        "2": 28752,
+        "3": 8774,
+        "4": 2350
+      },
+      "fields": [
+        "answer",
+        "answer_aliases",
+        "answerable",
+        "id",
+        "paragraphs",
+        "question",
+        "question_decomposition"
+      ],
+      "answerable": {
+        "False": 19938,
+        "True": 19938
+      }
+    }
+  }
+}

@@ -15,7 +15,7 @@
 | official/hotpotqa_fullwiki/validation/part-*.csv | 完整原字段，3 片 |
 | official/hotpotqa_fullwiki/test/part-*.csv | 完整原字段，3 片 |
 | hotpotqa_train_sample1000.csv | 新的 500/300/200 固定随机初抽 |
-| scope_selected2125.csv | 新 HotpotQA 1,000 + 原 MuSiQue 1,000 + 原 Bamboogle 125 |
+| scope_selected2125.csv | 新 HotpotQA 1,000 + 官方 MuSiQue-Ans dev 1,000（600/400）+ 原 Bamboogle 125 |
 | hotpotqa_sample1000.csv | 旧 dev hard 1,000 基线，保留 |
 | hotpotqa_fullwiki_manifest.json | 所有新导出文件的数量、大小及 SHA-256 |
 
@@ -59,3 +59,5 @@ python scripts/prepare_hotpotqa_train.py finalize
 冻结逻辑拒绝未审阅题、无理由决定、未知 ID、重复题、来源/种子绑定不符及不足配额。但现有 keep 仍含待事实核查备注，所以逻辑可冻结不代表语义质量已通过，当前没有执行冻结。
 
 参考：[官方划分](https://github.com/hotpotqa/hotpot#data-download-and-preprocessing)、[官方 HF 仓库](https://huggingface.co/datasets/hotpotqa/hotpot_qa)、[两配置共用训练源的 HF 历史脚本](https://github.com/huggingface/datasets/blob/1.18.3/datasets/hotpot_qa/hotpot_qa.py)、[ReAct](https://github.com/ysymyth/ReAct)。Yang et al., EMNLP 2018；数据许可 CC BY-SA 4.0，保留作者、来源及转换说明。
+
+合并输入现由 `python scripts/build_selected_dataset.py` 单独重建；明确变更版本时使用 `--update`。HotpotQA 导出脚本不再覆盖合并版或重置 MuSiQue 配额。见 `datasets/selection_manifest.json`。
