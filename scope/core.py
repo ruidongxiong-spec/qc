@@ -141,7 +141,7 @@ class Engine:
                 events.append({"node": node.id, "event": "blocked", "dependencies": missing})
                 continue
             parents = {d: asdict(memory[d]) for d in node.dependencies}
-            state, history = State(), []
+            state, history, completed_actions = State(), [], []
             observed_sources = {e["source"] for c in parents.values() for e in c["evidence"]}
             base = {"query": query, "node": asdict(node), "parents": parents}
             accepted = False
@@ -149,7 +149,7 @@ class Engine:
                 log(f"node={node.id} step={step + 1}/{cfg.max_steps}")
                 context = {**base, "state": asdict(state), "step": step,
                            "steps_remaining": cfg.max_steps - step,
-                           "completed_actions": [h["action"] for h in history]}
+                           "completed_actions": list(completed_actions)}
                 if not cfg.structured_memory:
                     context["history"] = history
                     context["parent_histories"] = {d: histories[d] for d in node.dependencies}
@@ -184,7 +184,7 @@ class Engine:
                         log(f"node={node.id} verification={verdict.value} reason={candidate.rationale}")
                         target.append(candidate.rationale)
                     elif name in ("search", "visit", "python_repl"):
-                        if any(h["action"].get("action") == name and h["action"].get("arguments", {}) == action.get("arguments", {}) for h in history):
+                        if any(a.get("action") == name and a.get("arguments", {}) == action.get("arguments", {}) for a in completed_actions):
                             reason = "This action already succeeded; use existing findings, choose a different query/URL, or finish."
                             state.feedback.append(reason)
                             events.append({"node": node.id, "step": step, "event": "duplicate_action", "tool": name})
@@ -211,6 +211,7 @@ class Engine:
                         if len(json.dumps(asdict(next_state), ensure_ascii=False)) > cfg.state_chars:
                             raise ValueError("Compact state exceeds state_chars budget; reduce new findings")
                         state = next_state
+                        completed_actions.append(action)
                         events.append({"node": node.id, "step": step, "event": "tool", "tool": name})
                     else:
                         raise ValueError(f"Invalid action: {name}")
@@ -236,12 +237,18 @@ class Engine:
                     log(f"node={node.id} {reason}; leaving node unresolved")
                     events.append({"node": node.id, "event": "partial_error", "reason": reason[:500]})
                 events.append({"node": node.id, "event": "timeout"})
-        final = self.backend.call("synthesizer", {
-            "query": query, "verified_memory": {k: asdict(v) for k, v in memory.items()},
-            "unresolved": [n.id for n in ordered if n.id not in memory]
-        }, 0.0)
-        if not isinstance(final.get("answer"), str) or not final["answer"].strip():
-            raise ValueError("Synthesizer requires a nonempty answer string")
+        try:
+            final = self.backend.call("synthesizer", {
+                "query": query, "verified_memory": {k: asdict(v) for k, v in memory.items()},
+                "unresolved": [n.id for n in ordered if n.id not in memory]
+            }, 0.0)
+            if not isinstance(final, dict) or not isinstance(final.get("answer"), str) or not final["answer"].strip():
+                raise ValueError("Synthesizer requires a nonempty answer string")
+        except (ValueError, KeyError, TypeError) as exc:
+            reason = f"Invalid synthesis: {type(exc).__name__}: {exc}"
+            log(f"{reason}; saving explicit abstention")
+            events.append({"event": "synthesis_error", "reason": reason[:500], "fallback": "Insufficient evidence"})
+            final = {"answer": "Insufficient evidence"}
         return {"query": query, "answer": final["answer"], "seconds": time.monotonic() - started, "config": asdict(cfg),
                 "plan": [asdict(n) for n in ordered],
                 "memory": {k: asdict(v) for k, v in memory.items()},

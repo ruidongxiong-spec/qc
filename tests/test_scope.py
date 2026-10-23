@@ -25,6 +25,36 @@ class RecordingBackend(DemoBackend):
 
 
 class ScopeTests(unittest.TestCase):
+    def test_invalid_synthesis_is_recorded_as_abstention(self):
+        for invalid in ({}, {"answer": " "}, {"answer": None}, []):
+            with self.subTest(invalid=invalid):
+                class InvalidSynthesis(DemoBackend):
+                    def call(self, role, payload, temperature):
+                        if role == "synthesizer":
+                            return invalid
+                        return super().call(role, payload, temperature)
+                result = Engine(InvalidSynthesis(), DemoTools(), Config(max_steps=1)).run("test")
+                self.assertEqual(result["answer"], "Insufficient evidence")
+                self.assertFalse(result["memory"])
+                self.assertTrue(any(e["event"] == "synthesis_error" for e in result["events"]))
+                self.assertEqual(score(result["answer"], "28"), {"em": 0.0, "f1": 0.0})
+
+    def test_failed_extraction_can_retry_same_action(self):
+        class BadExtractionOnce(RecordingBackend):
+            failed_once = False
+            def call(self, role, payload, temperature):
+                if role == "extractor" and not self.failed_once:
+                    self.failed_once = True
+                    return {"new_findings": [{"fact": "invented", "source": "unobserved"}]}
+                return super().call(role, payload, temperature)
+        backend = BadExtractionOnce()
+        result = Engine(backend, DemoTools()).run("test")
+        self.assertEqual(result["answer"], "28")
+        self.assertTrue(any(e["event"] == "schema_error" for e in result["events"]))
+        self.assertFalse(any(e["event"] == "duplicate_action" for e in result["events"]))
+        birth_calls = [p for r, p, _ in backend.calls if r == "executor" and p["node"]["id"] == "birth"]
+        self.assertEqual(birth_calls[1]["completed_actions"], [])
+
     def test_oversized_partial_does_not_abort_or_propagate(self):
         class OversizedPartial(RecordingBackend):
             def call(self, role, payload, temperature):
@@ -147,6 +177,31 @@ class ScopeTests(unittest.TestCase):
             server.server_close()
 
 class EvaluationCLITests(unittest.TestCase):
+    def test_invalid_final_answer_still_writes_scored_record(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from scope.cli import main
+        class EmptyAnswerBackend(DemoBackend):
+            model = "offline-fixture"
+            usage = []
+            def call(self, role, payload, temperature):
+                if role == "synthesizer":
+                    return {"answer": ""}
+                return super().call(role, payload, temperature)
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset, output = Path(tmp) / "input.jsonl", Path(tmp) / "result.jsonl"
+            dataset.write_text(json.dumps({"id": "one", "question": "test", "answer": "28"}) + "\n")
+            with patch("scope.cli.OpenAIBackend", EmptyAnswerBackend), patch("scope.cli.WebTools", lambda **kwargs: DemoTools()), patch(
+                "sys.argv", ["scope", "evaluate", "--input", str(dataset), "--output", str(output), "--runs", "1", "--max-steps", "1"]):
+                main()
+            record = json.loads(output.read_text())
+            summary = json.loads(output.with_suffix(".summary.json").read_text())
+            self.assertEqual(record["result"]["answer"], "Insufficient evidence")
+            self.assertEqual(summary["completed"], 1)
+            self.assertEqual(summary["em"], 0)
+            self.assertEqual(summary["f1"], 0)
+
     def test_three_run_evaluation(self):
         import tempfile
         from pathlib import Path
