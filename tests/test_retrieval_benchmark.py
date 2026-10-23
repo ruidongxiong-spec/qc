@@ -14,6 +14,22 @@ from scope.tools import DemoTools, public_url
 
 
 class RetrievalTests(unittest.TestCase):
+    def test_jina_does_not_preflight_local_dns(self):
+        from scope.retrieval import fetch
+        with patch("scope.tools.socket.getaddrinfo", side_effect=AssertionError("Local DNS used")), patch("scope.retrieval.urllib.request.build_opener") as opener:
+            response = opener.return_value.open.return_value.__enter__.return_value
+            response.read.return_value = b"Evidence"
+            response.headers.get_content_charset.return_value = "utf-8"
+            response.headers.get_content_type.return_value = "text/plain"
+            self.assertEqual(fetch("https://r.jina.ai/https://example.com", jina_endpoint=True)[0], "Evidence")
+            with patch("scope.retrieval.fetch", return_value=("Evidence", "text/plain")):
+                self.assertTrue(Retrieval(reader="jina")._visit("https://example.com"))
+
+    def test_direct_reader_still_checks_dns(self):
+        with patch("scope.tools.socket.getaddrinfo", return_value=[(0, 0, 0, "", ("2001::1", 443))]):
+            with self.assertRaises(ValueError):
+                Retrieval(reader="direct")._visit("https://example.com")
+
     def test_jina_encodes_model_url_without_double_encoding(self):
         adapter = Retrieval(reader="jina")
         url = "https://example.com/encyclopedia articles/café%20page?q=a b&x=1#section"

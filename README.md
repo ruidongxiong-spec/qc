@@ -117,4 +117,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -Model qwen2
 .\.venv\Scripts\python.exe -m scope.web_smoke
 ```
 
-若提示 `Private/local destinations are forbidden: <host>`，请修复系统/Clash DNS；例如维基百科曾解析到非公网 `2001::1`。设置 HTTP 代理不会自动修复本地 DNS，脚本保留地址检查并在网页检查失败时停止。DDGS/Jina 公共访问可能限流；连接成功不保证所有网页可读取。Ollama 必须运行，`-PullModel` 仅负责下载模型。网页检查成功后才会测试本地模型的 JSON 响应并执行真实评测。
+Jina 模式将网页地址交给 Jina 处理，不做本地 DNS 预检查或地址拦截；通过 Clash HTTP 代理连接时，由代理解析服务域名。direct 模式保留原有本地检查。DDGS/Jina 公共访问可能限流；连接成功不保证所有网页可读取。Ollama 必须运行，`-PullModel` 仅负责下载模型。网页检查成功后才会测试本地模型的 JSON 响应并执行真实评测。

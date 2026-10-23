@@ -22,12 +22,14 @@ class CheckedRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def fetch(url, data=None, headers=None):
-    public_url(url)
+def fetch(url, data=None, headers=None, jina_endpoint=False):
+    if not jina_endpoint:
+        public_url(url)
     req = urllib.request.Request(url, data=data, headers={
         "User-Agent": "SCOPE-Research/0.2", **(headers or {})})
     try:
-        with urllib.request.build_opener(CheckedRedirect()).open(req, timeout=30) as r:
+        redirect = urllib.request.HTTPRedirectHandler() if jina_endpoint else CheckedRedirect()
+        with urllib.request.build_opener(redirect).open(req, timeout=30) as r:
             raw = r.read(2_000_001)
             if len(raw) > 2_000_000:
                 raise ToolError("Response exceeds 2 MB limit")
@@ -117,7 +119,8 @@ class Retrieval:
     def _visit(self, url):
         if not isinstance(url, str) or any(ord(c) < 32 or ord(c) == 127 for c in url):
             raise ToolError("Visit URL must be a string without control characters")
-        public_url(url)
+        if self.reader != "jina":
+            public_url(url)
         parts = urllib.parse.urlsplit(url)
         # Models may emit readable spaces/Unicode; preserve existing escapes and
         # query separators, while sending a valid ASCII request target.
@@ -129,7 +132,7 @@ class Retrieval:
         ))
         if self.reader == "jina":
             headers = {"Authorization": "Bearer " + os.environ["JINA_API_KEY"]} if os.environ.get("JINA_API_KEY") else {}
-            text, _ = fetch("https://r.jina.ai/" + url, headers=headers)
+            text, _ = fetch("https://r.jina.ai/" + url, headers=headers, jina_endpoint=True)
         else:
             raw, content_type = fetch(url)
             if content_type == "text/plain":
