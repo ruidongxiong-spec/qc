@@ -14,6 +14,21 @@ from scope.tools import DemoTools, public_url
 
 
 class RetrievalTests(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec("ddgs"), "Install free-web extra")
+    def test_ddgs_backend_is_used_and_separates_cache(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("ddgs.DDGS") as ddgs:
+            ddgs.return_value.text.return_value = [{"href": "https://example.com", "body": "Evidence"}]
+            records = []
+            for backend in ("duckduckgo", "auto"):
+                with patch.dict("os.environ", {"SCOPE_DDGS_BACKEND": backend}):
+                    adapter = Retrieval(search="ddgs", cache_dir=tmp)
+                record = json.loads(adapter.execute("search", {"query": "test"}))
+                records.append(adapter.audit[0]["cache_key"])
+                self.assertEqual(ddgs.return_value.text.call_args.kwargs["backend"], backend)
+                self.assertEqual(record["request"]["ddgs_backend"], backend)
+            self.assertEqual(ddgs.return_value.text.call_count, 2)
+            self.assertNotEqual(*records)
+
     def test_jina_does_not_preflight_local_dns(self):
         from scope.retrieval import fetch
         with patch("scope.tools.socket.getaddrinfo", side_effect=AssertionError("Local DNS used")), patch("scope.retrieval.urllib.request.build_opener") as opener:

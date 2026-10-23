@@ -64,7 +64,8 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
         score("", row["answer"])
     # URLs are not recorded, to avoid exposing credential-bearing query strings.
     identity = fingerprint({"version": 1, "models": models, "rows": rows, "runs": runs,
-                            "config": asdict(config), "search": search, "reader": reader, "demo": demo})
+                            "config": asdict(config), "search": search, "reader": reader, "demo": demo,
+                            "ddgs_backend": os.environ.get("SCOPE_DDGS_BACKEND", "duckduckgo") if search == "ddgs" else None})
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     manifest = output / "manifest.json"

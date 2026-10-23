@@ -48,6 +48,7 @@ class Retrieval:
     def __init__(self, search=None, reader=None, cache_dir=None):
         self.search = search or os.environ.get("SCOPE_SEARCH_PROVIDER", "ddgs")
         self.reader = reader or os.environ.get("SCOPE_READER_PROVIDER", "direct")
+        self.ddgs_backend = os.environ.get("SCOPE_DDGS_BACKEND", "duckduckgo")
         self.cache_dir = Path(cache_dir or os.environ.get("SCOPE_CACHE_DIR", "runs/cache"))
         if self.search not in {"ddgs", "searxng", "wikipedia", "serper"}:
             raise ValueError("Unknown search provider")
@@ -66,7 +67,7 @@ class Retrieval:
         identity = {"version": 1, "action": name, "arguments": arguments,
                     "search": self.search, "reader": self.reader,
                     "searxng": os.environ.get("SEARXNG_BASE_URL", ""),
-                    "ddgs_backend": "duckduckgo", "region": "us-en"}
+                    "ddgs_backend": self.ddgs_backend, "region": "us-en"}
         digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         path = self.cache_dir / (digest + ".json")
         hit = path.exists()
@@ -101,7 +102,8 @@ class Retrieval:
             try:
                 proxy = (os.environ.get("DDGS_PROXY") or os.environ.get("HTTPS_PROXY")
                          or os.environ.get("https_proxy"))
-                rows = DDGS(timeout=20, proxy=proxy).text(query, max_results=5, backend="duckduckgo", region="us-en")
+                log(f"DDGS backend={self.ddgs_backend} proxy_configured={bool(proxy)}")
+                rows = DDGS(timeout=20, proxy=proxy).text(query, max_results=5, backend=self.ddgs_backend, region="us-en")
             except Exception as exc:
                 log(f"DDGS underlying error: {type(exc).__name__}: {exc}")
                 raise ToolError(f"DDGS retrieval failed ({type(exc).__name__}); check proxy, connectivity and rate limits") from None

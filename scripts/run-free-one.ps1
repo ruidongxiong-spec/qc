@@ -1,6 +1,7 @@
 param(
     [string]$Model = 'qwen2.5:7b',
     [string]$ProxyUrl = 'http://127.0.0.1:7890',
+    [string]$SearchBackend = 'auto',
     [string]$InputCsv = 'datasets/hotpotqa_train_clean1000.csv',
     [switch]$PullModel,
     [switch]$CheckWebOnly
@@ -30,6 +31,8 @@ try {
     $env:NO_PROXY = $Bypass -join ','
     $env:SCOPE_SEARCH_PROVIDER = 'ddgs'
     $env:SCOPE_READER_PROVIDER = 'jina'
+    $env:SCOPE_DDGS_BACKEND = $SearchBackend
+    Write-Host "DDGS search backend: $SearchBackend"
     Write-Host '[2/5] Testing DDGS search and Jina reading'
     & $Python -m scope.web_smoke
     Check-Exit 'Live web checks (see provider error above)'

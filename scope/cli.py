@@ -52,6 +52,7 @@ def main():
         results = []
         provenance = {"dataset_sha256": hashlib.sha256(Path(args.input).read_bytes()).hexdigest(),
                       "model": backend.model, "python": platform.python_version(), "ablation": args.ablation, "search": getattr(getattr(tools, "retrieval", None), "search", args.search or "ddgs"), "reader": getattr(getattr(tools, "retrieval", None), "reader", args.reader or "direct")}
+        provenance["ddgs_backend"] = getattr(getattr(tools, "retrieval", None), "ddgs_backend", None)
         with target.open("x", encoding="utf-8") as out:
             for run in range(args.runs):
                 for row in rows:
