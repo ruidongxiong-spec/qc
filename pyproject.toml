@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scope-reproduction"
+version = "0.1.0"
+description = "Independent reproduction of State-Constrained Plan Execution"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+scope = "scope.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["scope*"]
