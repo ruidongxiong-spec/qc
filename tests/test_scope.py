@@ -25,6 +25,34 @@ class RecordingBackend(DemoBackend):
 
 
 class ScopeTests(unittest.TestCase):
+    def test_oversized_partial_does_not_abort_or_propagate(self):
+        class OversizedPartial(RecordingBackend):
+            def call(self, role, payload, temperature):
+                if role == "forced_extractor":
+                    return {"result": "x" * 2000, "evidence": [], "confidence": 0}
+                return super().call(role, payload, temperature)
+        backend = OversizedPartial()
+        result = Engine(backend, DemoTools(), Config(max_steps=1)).run("test")
+        self.assertEqual(result["answer"], "Insufficient evidence")
+        self.assertFalse(result["memory"])
+        self.assertFalse(result["partials"])
+        self.assertTrue(any(e["event"] == "partial_error" for e in result["events"]))
+        self.assertTrue(any(e["event"] == "blocked" for e in result["events"]))
+
+    def test_repeated_successful_action_is_not_reexecuted(self):
+        class RepeatOnce(RecordingBackend):
+            def call(self, role, payload, temperature):
+                if role == "executor" and payload["node"]["id"] == "birth" and payload["step"] == 1:
+                    self.asserted_actions = payload["completed_actions"]
+                    return {"action": "search", "arguments": {"query": "Ada Lovelace birth year"}}
+                return super().call(role, payload, temperature)
+        backend = RepeatOnce()
+        result = Engine(backend, DemoTools()).run("test")
+        self.assertTrue(backend.asserted_actions)
+        self.assertEqual(result["answer"], "28")
+        self.assertEqual(sum(e["event"] == "duplicate_action" for e in result["events"]), 1)
+        self.assertEqual(sum(e["event"] == "tool" for e in result["events"]), 2)
+
     def test_demo_end_to_end(self):
         backend = RecordingBackend()
         result = Engine(backend, DemoTools()).run("test")

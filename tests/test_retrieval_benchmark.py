@@ -15,6 +15,12 @@ from scope.tools import DemoTools, public_url
 
 class RetrievalTests(unittest.TestCase):
     @unittest.skipUnless(importlib.util.find_spec("ddgs"), "Install free-web extra")
+    def test_disabled_backend_does_not_silently_fall_back(self):
+        with patch.dict("os.environ", {"SCOPE_DDGS_BACKEND": "bing"}):
+            with self.assertRaisesRegex(ValueError, "Unsupported DDGS backend: bing"):
+                Retrieval(search="ddgs")
+
+    @unittest.skipUnless(importlib.util.find_spec("ddgs"), "Install free-web extra")
     def test_ddgs_backend_is_used_and_separates_cache(self):
         with tempfile.TemporaryDirectory() as tmp, patch("ddgs.DDGS") as ddgs:
             ddgs.return_value.text.return_value = [{"href": "https://example.com", "body": "Evidence"}]

@@ -122,3 +122,5 @@ Jina 模式将网页地址交给 Jina 处理，不做本地 DNS 预检查或地�
 单条 Windows 脚本默认启用实时日志，输出阶段、题目、子任务/步数、模型角色与调用耗时、搜索词/访问链接、缓存、工具错误、验证结果及最终答案/评分。看到 `START model ... timeout=120s` 表示正在等待该次模型请求，完成后打印 `DONE` 和耗时；失败打印 `FAIL`。也可通过 `python -m scope.cli ... --verbose` 或 `SCOPE_VERBOSE=1` 启用。日志写入 stderr 并立即刷新，JSON 结果文件格式不变；不打印完整提示词或配置的 API key。
 
 Windows 单条试跑默认设置 `SCOPE_DDGS_BACKEND=auto`，使用 DDGS 的多搜索引擎模式，减少单独 DuckDuckGo 返回空结果造成的中断。可用 `-SearchBackend duckduckgo` 显式限定引擎。其他入口仍默认 `duckduckgo`，可通过同名环境变量选择；日志、缓存请求和单条评测来源信息记录该配置，矩阵续跑也会检查配置是否一致。`auto` 不保证联网成功，也不表示结果全部来自 DuckDuckGo，正式比较实验应固定同一配置。
+
+当前锁定的 DDGS 9.16.0 禁用了 Bing 文本引擎；`-SearchBackend bing` 不受支持，请用 `auto` 或报错中列出的可用引擎。适配器拒绝无效配置，防止库偷偷回退为 auto 后仍记录为 Bing。执行器会看到已成功执行的动作并跳过完全相同的重复动作；步数耗尽后，若模型返回超长或格式错误的部分结果，会记录 `partial_error`，将该节点保留为未解决并继续汇总，不把无效部分结果传给依赖节点。完成评测仍可能得到“证据不足”及低分。

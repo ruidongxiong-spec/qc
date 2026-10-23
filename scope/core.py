@@ -148,7 +148,8 @@ class Engine:
             for step in range(cfg.max_steps):
                 log(f"node={node.id} step={step + 1}/{cfg.max_steps}")
                 context = {**base, "state": asdict(state), "step": step,
-                           "steps_remaining": cfg.max_steps - step}
+                           "steps_remaining": cfg.max_steps - step,
+                           "completed_actions": [h["action"] for h in history]}
                 if not cfg.structured_memory:
                     context["history"] = history
                     context["parent_histories"] = {d: histories[d] for d in node.dependencies}
@@ -183,6 +184,12 @@ class Engine:
                         log(f"node={node.id} verification={verdict.value} reason={candidate.rationale}")
                         target.append(candidate.rationale)
                     elif name in ("search", "visit", "python_repl"):
+                        if any(h["action"].get("action") == name and h["action"].get("arguments", {}) == action.get("arguments", {}) for h in history):
+                            reason = "This action already succeeded; use existing findings, choose a different query/URL, or finish."
+                            state.feedback.append(reason)
+                            events.append({"node": node.id, "step": step, "event": "duplicate_action", "tool": name})
+                            log(f"node={node.id} duplicate action skipped: {reason}")
+                            continue
                         try:
                             observation = self.tools.execute(name, action.get("arguments", {}))
                         except (ValueError, OSError, TimeoutError) as exc:
@@ -217,12 +224,17 @@ class Engine:
             histories[node.id] = history
             if not accepted:
                 log(f"node={node.id} step budget exhausted; extracting partial result")
-                raw = self.backend.call("forced_extractor", {**base, "state": asdict(state)}, 0.0)
-                partial = self._candidate(node, raw)
-                partial.status = Verdict.UNCERTAIN
-                partial.rationale = "Step budget exhausted; unverified partial result"
-                self._check_budget(partial)
-                partials[node.id] = partial
+                try:
+                    raw = self.backend.call("forced_extractor", {**base, "state": asdict(state)}, 0.0)
+                    partial = self._candidate(node, raw)
+                    partial.status = Verdict.UNCERTAIN
+                    partial.rationale = "Step budget exhausted; unverified partial result"
+                    self._check_budget(partial)
+                    partials[node.id] = partial
+                except (ValueError, KeyError, TypeError) as exc:
+                    reason = f"Invalid partial result: {type(exc).__name__}: {exc}"
+                    log(f"node={node.id} {reason}; leaving node unresolved")
+                    events.append({"node": node.id, "event": "partial_error", "reason": reason[:500]})
                 events.append({"node": node.id, "event": "timeout"})
         final = self.backend.call("synthesizer", {
             "query": query, "verified_memory": {k: asdict(v) for k, v in memory.items()},

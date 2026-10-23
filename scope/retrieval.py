@@ -49,6 +49,15 @@ class Retrieval:
         self.search = search or os.environ.get("SCOPE_SEARCH_PROVIDER", "ddgs")
         self.reader = reader or os.environ.get("SCOPE_READER_PROVIDER", "direct")
         self.ddgs_backend = os.environ.get("SCOPE_DDGS_BACKEND", "duckduckgo")
+        if self.search == "ddgs":
+            try:
+                from ddgs.engines import ENGINES
+            except ImportError:
+                pass  # The search call reports the missing optional dependency.
+            else:
+                requested = {name.strip() for name in self.ddgs_backend.split(",")}
+                if not requested <= (set(ENGINES["text"]) | {"auto", "all"}):
+                    raise ValueError(f"Unsupported DDGS backend: {self.ddgs_backend}. Use auto or: {', '.join(sorted(ENGINES['text']))}")
         self.cache_dir = Path(cache_dir or os.environ.get("SCOPE_CACHE_DIR", "runs/cache"))
         if self.search not in {"ddgs", "searxng", "wikipedia", "serper"}:
             raise ValueError("Unknown search provider")
