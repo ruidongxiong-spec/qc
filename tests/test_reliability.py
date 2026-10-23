@@ -4,6 +4,7 @@ import json
 import tempfile
 import threading
 import unittest
+import urllib.error
 from collections import Counter
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -130,6 +131,25 @@ class ContractRecoveryTests(unittest.TestCase):
 
 
 class EndpointContractTests(unittest.TestCase):
+    def test_http_error_preserves_bounded_server_detail_without_key(self):
+        backend = OpenAIBackend(base_url="http://127.0.0.1:9999/v1", model="fixture", key="fixture-secret")
+        for payload in ({"error": "runner exited fixture-secret"}, {"error": {"message": "runner exited fixture-secret"}}):
+            error = urllib.error.HTTPError(backend.base_url, 500, "Internal Server Error", {}, io.BytesIO(json.dumps(payload).encode()))
+            with patch("scope.backends.urllib.request.urlopen", side_effect=error):
+                with self.assertRaises(ModelTransportError) as caught:
+                    backend.call("extractor", {}, 0)
+            self.assertIn("HTTP 500: runner exited", str(caught.exception))
+            self.assertNotIn("fixture-secret", str(caught.exception))
+
+    def test_non_json_http_error_does_not_dump_arbitrary_page(self):
+        backend = OpenAIBackend(base_url="http://127.0.0.1:9999/v1", model="fixture")
+        error = urllib.error.HTTPError(backend.base_url, 503, "Unavailable", {}, io.BytesIO(b'<html>private debug page</html>'))
+        with patch("scope.backends.urllib.request.urlopen", side_effect=error):
+            with self.assertRaises(ModelTransportError) as caught:
+                backend.call("extractor", {}, 0)
+        self.assertIn("HTTP 503", str(caught.exception))
+        self.assertNotIn("private debug", str(caught.exception))
+
     def test_response_envelope_errors_are_typed(self):
         malformed = [b'not-json', b'null', b'[]', b'{}', b'{"choices":[]}',
                      b'{"choices":[{"message":{"content":null}}]}',

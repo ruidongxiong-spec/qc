@@ -60,3 +60,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -SkipInstall
 无需手工重定向即可获得 `.log`。结果文件同一前缀：`.jsonl` 和 `.summary.json`。预检查失败可能只生成 `.log`，此时没有实际评测。不要反复读取前一次的日志。
 
 自动测试覆盖实际报告的缺失依赖、重复动作、超长部分结果、空汇总，以及非法图、模型响应结构、工具格式、超时、证据来源、缓存损坏、长请求日志、失败落盘和后续样本继续执行。离线故障注入与本地 HTTP 模拟服务测试不等价于 Windows 上的真实 Ollama/DDGS/Jina 成功运行；最终需要本机实际输出确认。
+
+## Ollama 返回 HTTP 500 时
+
+HTTP 500 表示模型服务返回了内部错误，不能仅凭状态码判定为内存不足或上下文超限。模型客户端会记录请求字符数/字节数，并保留服务端 JSON 中最多 1200 字符的错误消息（API key 脱敏）；不会打印完整请求或任意 HTML 错误页。此类错误仍记录为运行失败，不自动重试。
+
+Windows 上可先查看服务日志，无需重跑整题：
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\Ollama\server.log" -Tail 80
+ollama ps
+```
+
+根据具体服务日志再决定是否调整模型、上下文或硬件资源。20,000 字符的网页并不等于 20,000 tokens，不能从截断字符数直接推断是否超出了模型上下文。

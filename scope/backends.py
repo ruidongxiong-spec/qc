@@ -5,7 +5,7 @@ import os
 import time
 import urllib.error
 import urllib.request
-from .progress import log, stage
+from .progress import log, stage, redact
 from .errors import ModelOutputError, ModelTransportError
 
 PROMPTS = {
@@ -45,8 +45,9 @@ class OpenAIBackend:
         headers = {"Content-Type": "application/json"}
         if self.key:
             headers["Authorization"] = "Bearer " + self.key
-        req = urllib.request.Request(self.base_url + "/chat/completions",
-                                     json.dumps(body).encode(), headers)
+        encoded = json.dumps(body).encode()
+        log(f"model request role={role} message_chars={sum(len(m['content']) for m in body['messages'])} body_bytes={len(encoded)}")
+        req = urllib.request.Request(self.base_url + "/chat/completions", encoded, headers)
         started = time.monotonic()
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
@@ -54,7 +55,25 @@ class OpenAIBackend:
                 if len(raw) > 2_000_000:
                     raise ModelOutputError("Model HTTP response exceeds 2 MB")
         except urllib.error.HTTPError as exc:
-            raise ModelTransportError(f"Model endpoint returned HTTP {exc.code}") from None
+            detail = "No structured error detail returned"
+            try:
+                error_body = exc.read(8193)
+                if len(error_body) <= 8192:
+                    error_data = json.loads(error_body)
+                    if isinstance(error_data, dict):
+                        error = error_data.get("error", error_data.get("message"))
+                        if isinstance(error, dict):
+                            error = error.get("message")
+                        if isinstance(error, str) and error.strip():
+                            detail = error
+            except (ValueError, OSError, http.client.HTTPException):
+                pass
+            finally:
+                exc.close()
+            if self.key:
+                detail = detail.replace(self.key, "[redacted]")
+            detail = redact(detail)[:1200]
+            raise ModelTransportError(f"Model endpoint returned HTTP {exc.code}: {detail}") from None
         except urllib.error.URLError as exc:
             log(f"Model network error: {exc.reason}")
             raise ModelTransportError(f"Model network failure: {type(exc.reason).__name__}") from None
