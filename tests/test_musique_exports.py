@@ -100,7 +100,7 @@ class MusiqueExportTests(unittest.TestCase):
         for item in manifest["inputs"] + [manifest["output"]]:
             self.assertEqual(hashlib.sha256((ROOT / item["file"]).read_bytes()).hexdigest(), item["sha256"])
         combined = load("scope_selected2125.csv")
-        self.assertEqual(combined[1000:2000], load("musique_ans_dev_sample1000.csv"))
+        self.assertEqual(combined[1000:2000], load("musique_ans_dev_clean1000.csv"))
         self.assertEqual(combined[2000:], load("bamboogle.csv"))
         self.assertEqual(len(combined), 2125)
 

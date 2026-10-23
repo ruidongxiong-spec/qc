@@ -1,6 +1,9 @@
 # SCOPE 论文相关公开数据：本地 CSV
 
-**当前 MuSiQue 默认：`musique_ans_dev_sample1000.csv`，2-hop 600 + 3-hop 400。** 作者完整 ZIP 的 Ans/Full train/dev/test 均已导出原字段 CSV，见 [完整来源、文件与重建说明](../docs/musique-datasets.md)；`musique_sources.json`、`musique_manifest.json` 固定原始及输出散列。`scope_selected2125.csv` 已使用新版 MuSiQue 样本，合并来源见 `selection_manifest.json`。下表为保留的旧基线，不能误当当前默认。
+**2026-10-23 更新：已完成两份共 2,000 题的逐条题面复核，不新增逐题审阅记录或替换映射。当前输入为 `hotpotqa_train_clean1000.csv`（easy/medium/hard 500/300/200）和 `musique_ans_dev_clean1000.csv`（2-hop/3-hop 600/400），合并版仍为 `scope_selected2125.csv`。累计分别替换 133、221 条；原题、答案和元数据均来自同一原始 split，Bamboogle 不变。本轮处理明确的表达问题、缺失指代、同名实体错接、题干与答案类型冲突，并延续此前的答案泄漏和重复题检查，疑点已结合官方支持材料复核，尚不代表全量答案的独立事实核验。原初抽和完整来源导出保留；旧审阅草稿不作为本轮记录。**
+
+
+**当前 MuSiQue 默认：`musique_ans_dev_clean1000.csv`，2-hop 600 + 3-hop 400。** 作者完整 ZIP 的 Ans/Full train/dev/test 均已导出原字段 CSV，见 [完整来源、文件与重建说明](../docs/musique-datasets.md)；`musique_sources.json`、`musique_manifest.json` 固定原始及输出散列。`scope_selected2125.csv` 已使用新版 MuSiQue 样本，合并来源见 `selection_manifest.json`。下表为保留的旧基线，不能误当当前默认。
 
 这里包含真实公开问题/参考答案，不是生成的演示数据。CSV 已纳入仓库，正常 clone/下载代码包后即可使用，无需访问 Google Drive。文件采用 UTF-8 BOM + LF，可由 Excel 和本项目读取器加载。
 
@@ -18,7 +21,7 @@
 
 各文件之间有重叠。请按一次实验选一个文件，不要把目录所有 CSV 直接拼接。合并版用于工程联调，正式论文应分别报告数据集、hop、难度结果。
 
-最新已补齐官方 fullwiki **train 90,447 / validation 7,405 / test 7,405** 的 QA CSV，以及 `official/hotpotqa_fullwiki/` 下保留 context 的完整原字段分片。新抽样为 `hotpotqa_train_sample1000.csv`（**easy 500 / medium 300 / hard 200**），合并版为 `scope_selected2125.csv`。**用户已暂停审阅，当前抽样未应用排除建议**；Bamboogle 保持不变。见 [新数据口径与重建方式](../docs/hotpotqa-sampling.md)、[项目进度和后续任务](../docs/project-status.md)。新散列见 `hotpotqa_fullwiki_manifest.json`，上表旧基线仍保留。
+最新已补齐官方 fullwiki **train 90,447 / validation 7,405 / test 7,405** 的 QA CSV，以及 `official/hotpotqa_fullwiki/` 下保留 context 的完整原字段分片。新抽样为 `hotpotqa_train_sample1000.csv`（**easy 500 / medium 300 / hard 200**），合并版为 `scope_selected2125.csv`。原始 sample1000 为未清理初抽，当前清理版见页首；Bamboogle 保持不变。见 [新数据口径与重建方式](../docs/hotpotqa-sampling.md)、[项目进度和后续任务](../docs/project-status.md)。新散列见 `hotpotqa_fullwiki_manifest.json`，上表旧基线仍保留。
 
 ## 旧基线 GitHub 来源及版本
 

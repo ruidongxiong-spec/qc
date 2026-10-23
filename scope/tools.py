@@ -33,7 +33,7 @@ def public_url(url):
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.port not in (None, 443):
         raise ValueError("Visit requires a public HTTPS URL without credentials")
     if any(not ipaddress.ip_address(a[4][0]).is_global for a in socket.getaddrinfo(parsed.hostname, 443)):
-        raise ValueError("Private/local destinations are forbidden")
+        raise ValueError(f"Private/local destinations are forbidden: {parsed.hostname}; check system/Clash DNS resolution")
     return url
 
 

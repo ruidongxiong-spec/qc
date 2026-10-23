@@ -85,9 +85,11 @@ class Retrieval:
             except ImportError:
                 raise ToolError('Install the free-web extra: pip install -e ".[free-web]"') from None
             try:
-                rows = DDGS(timeout=20).text(query, max_results=5, backend="duckduckgo", region="us-en")
-            except Exception:
-                raise ToolError("DDGS retrieval failed or was rate limited") from None
+                proxy = (os.environ.get("DDGS_PROXY") or os.environ.get("HTTPS_PROXY")
+                         or os.environ.get("https_proxy"))
+                rows = DDGS(timeout=20, proxy=proxy).text(query, max_results=5, backend="duckduckgo", region="us-en")
+            except Exception as exc:
+                raise ToolError(f"DDGS retrieval failed ({type(exc).__name__}); check proxy, connectivity and rate limits") from None
             return [{"source": r["href"], "title": r.get("title", ""), "text": r.get("body", "")[:4000]} for r in rows]
         if self.search == "serper":
             key = os.environ.get("SERPER_API_KEY")

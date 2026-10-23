@@ -87,10 +87,34 @@ python -m scope.report --input runs/matrix-demo/summary.json --output runs/matri
 
 ## 最新数据与项目进度
 
-官方 HotpotQA fullwiki 三个划分现已提供 CSV：含上下文的全部原字段位于 `datasets/official/hotpotqa_fullwiki/` 的 34 个分片，每片不超过 20 MiB；轻量 QA 位于 `datasets/hotpotqa_fullwiki_*.csv`。新固定抽样为 `datasets/hotpotqa_train_sample1000.csv`（easy 500 / medium 300 / hard 200），新批测输入为 `datasets/scope_selected2125.csv`。MuSiQue 新抽样为 `datasets/musique_ans_dev_sample1000.csv`：Ans dev 的 **600 条 2-hop + 400 条 3-hop**；合并版已使用它。旧 dev hard 基线及 MuSiQue 500/500 镜像抽样保留追溯，Bamboogle 不变。用户已暂停清理，不将审阅草稿视为已完成清理。
+官方 HotpotQA fullwiki 三个划分已提供完整原字段分片和轻量 QA CSV。当前批测输入为 `datasets/scope_selected2125.csv`，合并逐条题面复核后的 `hotpotqa_train_clean1000.csv`（easy 500 / medium 300 / hard 200）、`musique_ans_dev_clean1000.csv`（Ans dev，2-hop 600 / 3-hop 400）和 Bamboogle 125 题。两份清理版相对初抽累计分别替换 133、221 条；完整来源和原始 sample1000 保留，不新增逐题记录。所有 2,000 题的题面均已逐条阅读，疑点结合官方支持材料检查，这不代表全量答案的独立事实核验。
 
 见 [背景、实现进度及后续任务](docs/project-status.md)、[数据口径与重建](docs/hotpotqa-sampling.md)。已有 Windows Git 副本可用 `scripts/setup-windows.ps1 -Update -FreeWeb` 安全同步 main；云环境不能直接写用户电脑的 D 盘。
 
 MuSiQue 官方 Ans/Full 的 train、dev、test 六份完整数据已导出 CSV（45 个 ≤20 MiB 分片），另有 Ans 全量轻量 QA 和 1,000 题抽样。来源、重建及字段见 [MuSiQue 数据说明](docs/musique-datasets.md)。
 
 后续数据审阅、模型与检索 API 修改、论文对齐、性能测试、展示和本地部署的优先级及验收标准见 [TODO 清单](docs/TODO.md)。
+
+## Windows 免费运行一条真实数据
+
+先安装 Python 3.11+、Git 和 [Ollama](https://ollama.com/download/windows)。在 `D:\qc` 的 PowerShell 中同步并运行：
+
+```powershell
+git pull --ff-only origin main
+powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -PullModel
+```
+
+脚本安装锁定的 free-web 依赖，使用 Clash HTTP 代理 `http://127.0.0.1:7890`，以 DDGS 搜索、匿名 Jina 读取，再通过本地 Ollama 的 `qwen2.5:7b` 运行清理版 HotpotQA 第一条数据一次。模型下载需要数 GB 空间，推理速度及可用模型大小取决于本机内存/显存；不调用付费模型 API。结果保存到唯一的 `runs/free-one-*.jsonl`，完成不代表答案正确，请查看答案、证据和 EM/F1。脚本仅修改当前进程环境变量，不保存密钥。
+
+```powershell
+# 仅测试网页工具，不需要 Ollama
+powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -CheckWebOnly
+# 已下载模型时直接运行；按实际 Clash HTTP 端口调整
+powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -ProxyUrl http://127.0.0.1:7890
+# 更换本地模型或数据集
+powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -Model qwen2.5:7b -InputCsv datasets/musique_ans_dev_clean1000.csv
+# 已装好依赖后，独立检查搜索、读取及搜索到读取链路
+.\.venv\Scripts\python.exe -m scope.web_smoke
+```
+
+若提示 `Private/local destinations are forbidden: <host>`，请修复系统/Clash DNS；例如维基百科曾解析到非公网 `2001::1`。设置 HTTP 代理不会自动修复本地 DNS，脚本保留地址检查并在网页检查失败时停止。DDGS/Jina 公共访问可能限流；连接成功不保证所有网页可读取。Ollama 必须运行，`-PullModel` 仅负责下载模型。网页检查成功后才会测试本地模型的 JSON 响应并执行真实评测。

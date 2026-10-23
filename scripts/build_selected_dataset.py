@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scope.curation import csv_bytes, digest, json_bytes, preserve_write
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUTS = ("hotpotqa_train_sample1000.csv", "musique_ans_dev_sample1000.csv", "bamboogle.csv")
+INPUTS = ("hotpotqa_train_clean1000.csv", "musique_ans_dev_clean1000.csv", "bamboogle.csv")
 
 
 def build(update=False):
@@ -33,7 +33,7 @@ def build(update=False):
     path = ROOT / "datasets/scope_selected2125.csv"
     manifest = dict(schema_version=1, inputs=inputs, quotas=dict(hotpotqa=dict(easy=500, medium=300, hard=200),
                     musique={"2": 600, "3": 400}, bamboogle=125),
-                    semantic_review_status="paused_by_user; no exclusions applied",
+                    semantic_review_status="all_2000_question_texts_individually_read; selected_source_checks; not_exhaustive_factual_verification",
                     output=dict(file=path.name, rows=2125, bytes=len(data), sha256=digest(data)))
     for target, content in ((path, data), (ROOT / "datasets/selection_manifest.json", json_bytes(manifest))):
         if update:
