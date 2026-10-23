@@ -69,7 +69,8 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
     # URLs are not recorded, to avoid exposing credential-bearing query strings.
     model_settings = {key: os.environ.get(key, default) for key, default in {
         'SCOPE_MODEL_API': 'openai', 'SCOPE_RESPONSE_FORMAT': 'json_object',
-        'SCOPE_OLLAMA_CONTEXT': '8192', 'SCOPE_MAX_OUTPUT_TOKENS': '768'}.items()}
+        'SCOPE_OLLAMA_CONTEXT': '8192', 'SCOPE_MAX_OUTPUT_TOKENS': '768',
+        'SCOPE_OPENROUTER_REASONING': 'disabled'}.items()}
     if config.tokenizer_path:
         model_settings['capsule_tokenizer_sha256'] = hashlib.sha256(Path(config.tokenizer_path).read_bytes()).hexdigest()
     if os.environ.get('SCOPE_TOKENIZER_PATH'):

@@ -39,6 +39,9 @@ class OpenAIBackend:
             raise ValueError("Invalid SCOPE_MODEL_API or SCOPE_RESPONSE_FORMAT")
         if self.is_openrouter and self.api_mode != 'openai':
             raise ValueError('OpenRouter requires SCOPE_MODEL_API=openai')
+        self.reasoning_mode = os.environ.get('SCOPE_OPENROUTER_REASONING', 'disabled') if self.is_openrouter else None
+        if self.is_openrouter and self.reasoning_mode not in {'disabled', 'auto'}:
+            raise ValueError('SCOPE_OPENROUTER_REASONING must be disabled or auto')
         self.context_tokens = int(os.environ.get("SCOPE_OLLAMA_CONTEXT", "8192"))
         self.max_output_tokens = int(os.environ.get("SCOPE_MAX_OUTPUT_TOKENS", "768"))
         if self.context_tokens < 2048 or not 128 <= self.max_output_tokens <= 4096:
@@ -83,6 +86,10 @@ class OpenAIBackend:
             body.pop('top_p', None)
             body.update(stream=False, max_tokens=output_limit,
                         provider={'require_parameters': True, 'max_price': {'prompt': 0, 'completion': 0}})
+            if self.reasoning_mode == 'disabled':
+                # Excluding reasoning from the response would still consume its
+                # generation budget. Request disabling it instead.
+                body['reasoning'] = {'enabled': False}
             if self.response_mode == 'json_object':
                 body['messages'][0]['content'] += ' Required JSON structure: ' + json.dumps(contract)
         if self.token_counter:
@@ -96,7 +103,7 @@ class OpenAIBackend:
         if self.key:
             headers["Authorization"] = "Bearer " + self.key
         encoded = json.dumps(body).encode()
-        log(f"model request role={role} temperature={temperature} message_chars={sum(len(m['content']) for m in body['messages'])} body_bytes={len(encoded)}")
+        log(f"model request role={role} temperature={temperature} output_limit={output_limit} reasoning={self.reasoning_mode or 'not-configured'} message_chars={sum(len(m['content']) for m in body['messages'])} body_bytes={len(encoded)}")
         req = urllib.request.Request(endpoint, encoded, headers)
         started = time.monotonic()
         try:
@@ -147,24 +154,38 @@ class OpenAIBackend:
                 choice = data["choices"][0]
             if not isinstance(usage, dict):
                 usage = {}
+            message = choice['message']
+            content = message.get('content')
+            content_chars = len(content) if isinstance(content, str) else 0
+            # Only structural diagnostics about reasoning; never store or print
+            # the provider's private reasoning text or reasoning_details.
+            reasoning_present = bool(message.get('reasoning') or message.get('reasoning_details'))
+            token_details = usage.get('completion_tokens_details') or {}
+            reasoning_tokens = token_details.get('reasoning_tokens') if isinstance(token_details, dict) else None
             self.usage.append({**usage, "role": role, "model": self.model,
                                "served_model": data.get('model'), "provider": data.get('provider'),
+                               "finish_reason": choice.get('finish_reason'), "content_chars": content_chars,
+                               "reasoning_present": reasoning_present, "reasoning_tokens": reasoning_tokens,
+                               "requested_reasoning": self.reasoning_mode, "output_limit": output_limit,
                                "seconds": time.monotonic() - started})
-            log(f"model response role={role} finish_reason={choice.get('finish_reason')} prompt_tokens={usage.get('prompt_tokens')} completion_tokens={usage.get('completion_tokens')}")
-            content = choice["message"]["content"]
-            if not isinstance(content, str) or not content.strip():
-                raise ValueError("Missing text content")
-            content = content.strip()
+            log(f"model response role={role} finish_reason={choice.get('finish_reason')} prompt_tokens={usage.get('prompt_tokens')} completion_tokens={usage.get('completion_tokens')} content_chars={content_chars} reasoning_present={reasoning_present} reasoning_tokens={reasoning_tokens}")
         except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
             raise ModelOutputError(f"Invalid model response envelope: {type(exc).__name__}: {exc}") from None
         # Preserve bounded head/tail diagnostics rather than losing the generated
         # text at the exception boundary. Never parse a truncated answer as valid.
-        safe_content = redact(content)
+        safe_content = redact(content.strip()) if isinstance(content, str) else ''
         if self.key:
             safe_content = safe_content.replace(self.key, '[redacted]')
         preview = safe_content if len(safe_content) <= 1000 else safe_content[:650] + '\n...[truncated]...\n' + safe_content[-300:]
         if choice.get('finish_reason') == 'length':
-            raise ModelOutputError("Model response truncated (finish_reason=length); return less text", response_preview=preview)
+            raise ModelOutputError(f"Model response truncated (finish_reason=length): output_limit={output_limit}, "
+                                   f"completion_tokens={usage.get('completion_tokens')}, content_chars={content_chars}, "
+                                   f"reasoning_tokens={reasoning_tokens}; return a shorter JSON object or adjust output/reasoning settings",
+                                   response_preview=preview or None)
+        if not isinstance(content, str) or not content.strip():
+            raise ModelOutputError(f"Missing text content (finish_reason={choice.get('finish_reason')}, "
+                                   f"reasoning_present={reasoning_present}, reasoning_tokens={reasoning_tokens})")
+        content = content.strip()
         if content.startswith("```json") and content.endswith("```"):
             content = content[7:-3].strip()
         try:

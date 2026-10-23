@@ -90,6 +90,7 @@ def main():
         provenance["code_commit"] = os.environ.get("SCOPE_CODE_COMMIT")
         provenance["output_contract_version"] = CONTRACT_VERSION
         provenance["openrouter_free_only"] = getattr(backend, 'is_openrouter', False)
+        provenance["openrouter_reasoning"] = getattr(backend, 'reasoning_mode', None)
         provenance.update(model_api=getattr(backend, 'api_mode', None), response_format=getattr(backend, 'response_mode', None),
                           context_tokens=getattr(backend, 'context_tokens', None) if getattr(backend, 'api_mode', None) == 'ollama' else None,
                           max_output_tokens=getattr(backend, 'max_output_tokens', None),

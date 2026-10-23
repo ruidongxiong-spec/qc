@@ -8,6 +8,8 @@ param(
     [ValidateRange(1, 32)][int]$MaxSteps = 8,
     [ValidateRange(0, 3)][int]$OutputRetries = 1,
     [ValidateRange(1, 3600)][int]$ModelTimeout = 120,
+    [ValidateRange(128, 4096)][int]$MaxOutputTokens = 1024,
+    [ValidateSet('disabled', 'auto')][string]$Reasoning = 'disabled',
     [ValidateRange(2048, 131072)][int]$ContextTokens = 8192,
     [ValidateRange(256, 20000)][int]$ObservationChunkChars = 4000,
     [string]$TokenizerPath = '',
@@ -59,6 +61,8 @@ try {
     $env:PYTHONUNBUFFERED = '1'
     $env:PYTHONIOENCODING = 'utf-8'
     $env:SCOPE_MODEL_TIMEOUT = [string]$ModelTimeout
+    $env:SCOPE_MAX_OUTPUT_TOKENS = [string]$MaxOutputTokens
+    $env:SCOPE_OPENROUTER_REASONING = $Reasoning
     Write-Step "Log: $LogPath"
     Write-Step "Result: $Output"
     Write-Step "Settings: model=$Model search=ddgs backend=$SearchBackend reader=jina max_steps=$MaxSteps output_retries=$OutputRetries model_timeout=$ModelTimeout"
@@ -85,6 +89,7 @@ try {
         $env:SCOPE_MODEL_API = 'ollama'
     }
     Write-Step "Model provider=$ModelProvider; response=$ResponseFormat; observation_chunk_chars=$ObservationChunkChars"
+    Write-Step "Generation: max_output_tokens=$MaxOutputTokens (verifier=128); OpenRouter reasoning=$Reasoning; capsule budget=512 is separate."
     Write-Step ('Credentials: OpenRouter key configured=' + [bool]$env:OPENROUTER_API_KEY + '; DDGS=no key; Jina key configured=' + [bool]$env:JINA_API_KEY)
     if (Get-Command git -ErrorAction SilentlyContinue) {
         $Commit = git rev-parse HEAD

@@ -6,14 +6,15 @@ from unittest.mock import patch
 
 from scope.backends import DemoBackend, OpenAIBackend, PROMPTS
 from scope.core import Engine
-from scope.errors import ModelTransportError
+from scope.errors import ModelOutputError, ModelTransportError
 from scope.openrouter import free_models, inspect_model, read_models
 from scope.progress import redact
 from scope.tools import DemoTools
 
 MODEL = 'liquid/lfm-2.5-2.6b:free'
 ENV = {'OPENROUTER_API_KEY': 'test-openrouter-secret', 'SCOPE_API_KEY': 'old-key',
-       'SCOPE_MODEL_API': 'openai', 'SCOPE_RESPONSE_FORMAT': 'json_object', 'SCOPE_TOKENIZER_PATH': ''}
+       'SCOPE_MODEL_API': 'openai', 'SCOPE_RESPONSE_FORMAT': 'json_object', 'SCOPE_TOKENIZER_PATH': '',
+       'SCOPE_OPENROUTER_REASONING': 'disabled'}
 
 
 class OpenRouterTests(unittest.TestCase):
@@ -36,6 +37,7 @@ class OpenRouterTests(unittest.TestCase):
             self.assertEqual(body['provider'], {'require_parameters': True, 'max_price': {'prompt': 0, 'completion': 0}})
             self.assertEqual(body['response_format'], {'type': 'json_object'})
             self.assertEqual(body['max_tokens'], 768)
+            self.assertEqual(body['reasoning'], {'enabled': False})
             self.assertFalse(body['stream'])
             for key in ('options', 'format', 'top_p'):
                 self.assertNotIn(key, body)
@@ -139,3 +141,51 @@ class OpenRouterTests(unittest.TestCase):
         with patch('scope.openrouter.urllib.request.urlopen', return_value=io.BytesIO(b'{"data":{}}')):
             with self.assertRaisesRegex(ValueError, 'Invalid OpenRouter model catalog'):
                 read_models()
+
+    def test_reasoning_auto_omits_control_and_output_budget_is_configurable(self):
+        with patch.dict('os.environ', {**ENV, 'SCOPE_OPENROUTER_REASONING': 'auto', 'SCOPE_MAX_OUTPUT_TOKENS': '1536'}), patch(
+                'scope.backends.urllib.request.urlopen') as request:
+            request.return_value.__enter__.return_value.read.return_value = json.dumps({
+                'choices': [{'message': {'content': '{"answer":"ok"}'}, 'finish_reason': 'stop'}]}).encode()
+            self.backend().call('synthesizer', {}, 0)
+            body = json.loads(request.call_args.args[0].data)
+            self.assertNotIn('reasoning', body)
+            self.assertEqual(body['max_tokens'], 1536)
+
+    def test_empty_body_at_length_limit_reports_truncation_not_missing_text(self):
+        envelope = {'choices': [{'finish_reason': 'length', 'message': {
+            'content': None, 'reasoning': 'private fixture reasoning never log this',
+            'reasoning_details': [{'text': 'private fixture reasoning never log this'}]}}],
+            'usage': {'completion_tokens': 768, 'completion_tokens_details': {'reasoning_tokens': 768}}}
+        with patch.dict('os.environ', ENV), patch('scope.backends.urllib.request.urlopen') as request, patch('scope.backends.log') as logger:
+            request.return_value.__enter__.return_value.read.return_value = json.dumps(envelope).encode()
+            backend = self.backend()
+            with self.assertRaises(ModelOutputError) as caught:
+                backend.call('planner', {}, .7)
+        self.assertIn('finish_reason=length', str(caught.exception))
+        self.assertIn('content_chars=0', str(caught.exception))
+        self.assertIn('reasoning_tokens=768', str(caught.exception))
+        self.assertNotIn('Missing text content', str(caught.exception))
+        self.assertIsNone(caught.exception.response_preview)
+        self.assertTrue(backend.usage[0]['reasoning_present'])
+        self.assertEqual(backend.usage[0]['reasoning_tokens'], 768)
+        for public_record in (str(logger.call_args_list), json.dumps(backend.usage), str(caught.exception)):
+            self.assertNotIn('private fixture reasoning', public_record)
+
+    def test_no_reasoning_metadata_does_not_imply_zero_reasoning_tokens(self):
+        envelope = {'choices': [{'finish_reason': 'length', 'message': {'content': ''}}],
+                    'usage': {'completion_tokens': 768}}
+        with patch.dict('os.environ', ENV), patch('scope.backends.urllib.request.urlopen') as request:
+            request.return_value.__enter__.return_value.read.return_value = json.dumps(envelope).encode()
+            backend = self.backend()
+            with self.assertRaisesRegex(ModelOutputError, 'reasoning_tokens=None'):
+                backend.call('planner', {}, .7)
+        self.assertIsNone(backend.usage[0]['reasoning_tokens'])
+
+    def test_reasoning_only_response_cannot_be_used_as_final_json(self):
+        envelope = {'choices': [{'finish_reason': 'stop', 'message': {
+            'content': None, 'reasoning': '{"answer":"unsupported guess"}'}}]}
+        with patch.dict('os.environ', ENV), patch('scope.backends.urllib.request.urlopen') as request:
+            request.return_value.__enter__.return_value.read.return_value = json.dumps(envelope).encode()
+            with self.assertRaisesRegex(ModelOutputError, 'Missing text content'):
+                self.backend().call('synthesizer', {}, 0)

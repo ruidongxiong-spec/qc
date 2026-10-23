@@ -107,7 +107,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1
 
 脚本优先读取 `OPENROUTER_API_KEY`；未设置时提示隐藏输入，仅供该 PowerShell 进程使用，不写文件或日志。运行前查询该精确模型 ID 的可用信息及免费价格，请求设置零 token 价格上限，不切换到付费模型。免费供应商不可用、模型下线或被限流时会明确报错。
 
-脚本安装 free-web 与 tokenizers，使用 Clash HTTP 代理 `http://127.0.0.1:7890`，通过 DDGS 搜索、匿名 Jina 读取，评测清理版 HotpotQA 第一条一次。模型在 OpenRouter 远端运行；本地仅下载模型信息中对应仓库的 tokenizer.json，用于 512-token Capsule 计数，不复用 Qwen tokenizer。元数据缺少 tokenizer 仓库时需显式指定 `-TokenizerRepo` 或 `-TokenizerPath`；`-LegacyByteBudget` 可显式选择旧字节预算。默认 `json_object` 加角色结构提示和运行时校验；`-ResponseFormat json_schema` 可显式选择严格 Schema，供应商不支持时直接报错。
+脚本安装 free-web 与 tokenizers，使用 Clash HTTP 代理 `http://127.0.0.1:7890`，通过 DDGS 搜索、匿名 Jina 读取，评测清理版 HotpotQA 第一条一次。模型在 OpenRouter 远端运行；本地仅下载模型信息中对应仓库的 tokenizer.json，用于 512-token Capsule 计数，不复用 Qwen tokenizer。元数据缺少 tokenizer 仓库时需显式指定 `-TokenizerRepo` 或 `-TokenizerPath`；`-LegacyByteBudget` 可显式选择旧字节预算。默认请求关闭可选推理（`-Reasoning disabled`），单次输出上限 1024 tokens（`-MaxOutputTokens`，verifier 为 128），独立于 512-token Capsule 存储预算。默认 `json_object` 加角色结构提示和运行时校验；`-ResponseFormat json_schema` 可显式选择严格 Schema，供应商不支持时直接报错。
 
 ```powershell
 # 只测试网页工具，不需要模型 key

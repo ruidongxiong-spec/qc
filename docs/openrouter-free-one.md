@@ -19,6 +19,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1
 ## 模型和 tokenizer 配置
 
 - OpenRouter 使用标准 Chat Completions、Bearer key、非流式响应、`max_tokens` 和 `response_format`；不传 Ollama 的 `num_ctx/num_predict`，也不传用户提供的 LFM 能力列表未列出的 `top_p`。
+- 默认请求 `reasoning={"enabled":false}`，避免可选推理占用供 JSON 正文使用的生成额度；这与只隐藏推理文本的 `exclude=true` 不同。`-Reasoning auto` 可显式省略控制、使用服务默认值。供应商不支持该参数时明确报错，不自动取消限制。
 - 默认 `json_object`，将角色所需 JSON 结构放入提示并继续运行时校验。模型声明支持 `response_format` 并不单独证明每个供应商支持完整严格 JSON Schema，因此不默认开启严格模式。需要时可显式 `-ResponseFormat json_schema`；不支持就失败，不静默降级。
 - 通过模型列表的 `hugging_face_id` 获取对应 tokenizer 仓库，再按固定 revision 下载 tokenizer.json 并记录 SHA-256。本地不下载模型权重，也不使用已有 Qwen tokenizer 计数 LFM 输出。
 - 若模型信息没有 tokenizer 仓库，可显式 `-TokenizerRepo owner/repo` 或 `-TokenizerPath D:\models\tokenizer.json`。找不到文件会停止；`-LegacyByteBudget` 仅在用户显式选择时启用旧的 512 UTF-8 字节预算，不冒充论文的 512 tokens。
@@ -60,3 +61,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -
 ```
 
 公开模型目录能访问不等于 API key 已验证；认证与生成仍以实际 Chat Completions 响应为准。
+
+## 规划器输出额度耗尽但没有正文
+
+2026-10-24 的用户日志已经确认：正确模型 ID、零价格元数据、LiquidAI tokenizer 下载，以及一次真实 OpenRouter JSON 回答都成功。随后规划器连续两次返回 `finish_reason=length`、`completion_tokens=768`，正文为空。旧解析顺序先检查正文，误将截断主要报告为 `Missing text content`。这能确认生成额度耗尽，但不能单凭这份日志断定全部额度都消耗在推理上。
+
+处理：
+
+- OpenRouter 默认显式请求关闭可选推理，不读取推理文本作为答案。若服务仍提供推理字段，只记录其是否存在；服务提供 `usage.completion_tokens_details.reasoning_tokens` 时记录该数值，缺失时保留 null，不能视为 0。
+- Windows 脚本新增 `-MaxOutputTokens`，默认 1024（范围 128–4096），verifier 保持 128。这是单次生成总额度，包含供应商可能计入的推理部分；与 512-token Capsule 存储预算分开。通用 Python 客户端仍以 `SCOPE_MAX_OUTPUT_TOKENS` 配置，未设置时保持旧默认 768。
+- 优先判断 `finish_reason=length`，即使正文为空也明确报告截断；只有非截断的空正文才报告 Missing text content。日志和 usage 保存 finish reason、正文字符数、报告的推理 token 数、输出额度和请求推理模式，不保存推理正文。
+- 默认仍是最多一次角色输出修正，不无限重试或自动放宽验证。`-ModelTimeout` 默认 120 秒，此次日志每次请求都在超时前返回，没有证据要求调整它。
+
+更新后可运行：
+
+```powershell
+cd D:\qc
+git -c http.proxy=http://127.0.0.1:7890 pull --ff-only origin main
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -SkipInstall -Reasoning disabled -MaxOutputTokens 1024
+```
+
+`-SkipInstall` 适用于前次已安装依赖的环境，本轮没有新增依赖。之前下载的 LFM tokenizer 会校验后复用。若仍有生成问题，应根据新日志的 `finish_reason`、`content_chars`、`reasoning_tokens` 和服务端错误判断；自动测试只覆盖协议与错误处理，不能保证远端供应商的实际行为。
