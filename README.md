@@ -92,3 +92,5 @@ python -m scope.report --input runs/matrix-demo/summary.json --output runs/matri
 见 [背景、实现进度及后续任务](docs/project-status.md)、[数据口径与重建](docs/hotpotqa-sampling.md)。已有 Windows Git 副本可用 `scripts/setup-windows.ps1 -Update -FreeWeb` 安全同步 main；云环境不能直接写用户电脑的 D 盘。
 
 MuSiQue 官方 Ans/Full 的 train、dev、test 六份完整数据已导出 CSV（45 个 ≤20 MiB 分片），另有 Ans 全量轻量 QA 和 1,000 题抽样。来源、重建及字段见 [MuSiQue 数据说明](docs/musique-datasets.md)。
+
+后续数据审阅、模型与检索 API 修改、论文对齐、性能测试、展示和本地部署的优先级及验收标准见 [TODO 清单](docs/TODO.md)。

@@ -2,6 +2,8 @@
 
 更新日期：2026-10-23。仓库：`ruidongxiong-spec/qc`，分支 `main`。
 
+可逐项跟踪的后续任务、优先级和验收标准见 [TODO 清单](TODO.md)。本文保留背景与当前进度，TODO 用于跟踪下一步实施。
+
 ## 背景与已确定范围
 
 使用 Python 复现用户论文 *From Trajectories to States: State-Constrained Plan Execution for LLM Agents* 的核心方案，支持远程运行、比较模型与展示执行证据。第二个创新点和完整前后端系统是后续研究任务，目前不宣称已完成。
