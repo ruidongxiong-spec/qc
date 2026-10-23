@@ -1,6 +1,6 @@
 # 基于论文的输出与上下文优化
 
-本文记录 bfd4aaa 的 Ollama 优化方案。当前默认已按用户要求切换到 OpenRouter `liquid/lfm-2.5-2.6b`；启动、认证、JSON 模式和对应 tokenizer 以 [OpenRouter 接入](openrouter-free-one.md) 为准。分段提取和论文验证门控继续保留。
+本文记录 bfd4aaa 的 Ollama 优化方案。当前默认已按用户要求切换到 OpenRouter `liquid/lfm-2.5-2.6b:free`；启动、认证、JSON 模式和对应 tokenizer 以 [OpenRouter 接入](openrouter-free-one.md) 为准。分段提取和论文验证门控继续保留。
 
 目标：针对本地 Qwen2.5:7b 出现的错误 JSON 结构、长网页抽取失败、重复访问和 Capsule 预算失真，降低格式失败与无效调用。保持 DAG、节点隔离、直接父节点注入、独立验证和默认每节点 8 步。改动没有预置任何数据集答案，也不以联网检查通过或正常退出代替答题正确。
 

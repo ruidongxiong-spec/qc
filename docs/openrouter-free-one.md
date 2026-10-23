@@ -1,6 +1,6 @@
 # OpenRouter LFM 免费运行一题
 
-默认模型严格使用用户提供的 `liquid/lfm-2.5-2.6b`，地址 `https://openrouter.ai/api/v1/chat/completions`。不自动加 `:free` 后缀，不选择其他模型。DDGS/Jina、数据集、每节点 8 步、状态分段提取、独立验证和结果评分保持原流程。
+默认模型使用用户从实时 OpenRouter 目录确认的 `liquid/lfm-2.5-2.6b:free`，地址 `https://openrouter.ai/api/v1/chat/completions`。`:free` 是该模型 ID 的组成部分，必须保留；不替换为同系列的付费模型。DDGS/Jina、数据集、每节点 8 步、状态分段提取、独立验证和结果评分保持原流程。
 
 ## 启动
 
@@ -24,7 +24,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1
 - 若模型信息没有 tokenizer 仓库，可显式 `-TokenizerRepo owner/repo` 或 `-TokenizerPath D:\models\tokenizer.json`。找不到文件会停止；`-LegacyByteBudget` 仅在用户显式选择时启用旧的 512 UTF-8 字节预算，不冒充论文的 512 tokens。
 - `-ContextTokens` 只控制可选 Ollama 模式。OpenRouter 的模型上下文长度见同前缀 `.model.json`；服务器自行执行上下文限制。相同 Hugging Face tokenizer 与远端量化/模板设置是否完全一致仍需供应商确认。
 
-通用 Python CLI 也可设置 `SCOPE_BASE_URL=https://openrouter.ai/api/v1`、`SCOPE_MODEL=liquid/lfm-2.5-2.6b`、`SCOPE_MODEL_API=openai`、`SCOPE_RESPONSE_FORMAT=json_object`、`OPENROUTER_API_KEY` 和匹配的 `SCOPE_TOKENIZER_PATH`。CLI 不执行脚本的模型列表预检查，但该 OpenRouter 地址的生成请求始终限制零 token 价格路由。
+通用 Python CLI 也可设置 `SCOPE_BASE_URL=https://openrouter.ai/api/v1`、`SCOPE_MODEL=liquid/lfm-2.5-2.6b:free`、`SCOPE_MODEL_API=openai`、`SCOPE_RESPONSE_FORMAT=json_object`、`OPENROUTER_API_KEY` 和匹配的 `SCOPE_TOKENIZER_PATH`。CLI 不执行脚本的模型列表预检查，但该 OpenRouter 地址的生成请求始终限制零 token 价格路由。
 
 ## 结果和故障
 
@@ -42,3 +42,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1
 ## 验证边界
 
 本次自动测试覆盖请求 URL/模型/认证、免费路由参数、模型列表和 tokenizer 发现、非免费或缺失模型拒绝、错误封装及完整引擎模拟流程。当前云环境未配置 OpenRouter key，未用真实 LFM 服务完成答题；不能把模拟测试报告为真实联网成功或准确率提升。Windows PowerShell 流程与实际供应商兼容性仍需本机运行确认。
+
+## 模型 ID 不在目录时
+
+用户于 2026-10-24（北京时间）返回的目录包含 `liquid/lfm-2.5-2.6b:free`，输入/输出价格均为 0；不带 `:free` 的 ID 未列出。原来的 30e5278 默认值漏掉此后缀，已修正。同期 `liquid/lfm-2.5-24b-a2b` 为付费模型，不作为替代。
+
+可以在旧版本上直接指定正确 ID：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -Model liquid/lfm-2.5-2.6b:free
+```
+
+新版本遇到未列出的 ID 会在错误中列出同厂商当前公布的免费模型，不猜后缀或自动换模型。也可独立查询，无需输入 key、测试网页工具或发起模型推理：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -ListModels
+```
+
+公开模型目录能访问不等于 API key 已验证；认证与生成仍以实际 Chat Completions 响应为准。

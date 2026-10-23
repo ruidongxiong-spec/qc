@@ -15,12 +15,13 @@ param(
     [switch]$LegacyByteBudget,
     [switch]$PullModel,
     [switch]$CheckWebOnly,
+    [switch]$ListModels,
     [switch]$SkipInstall,
     [switch]$SkipWebCheck
 )
 $ErrorActionPreference = 'Stop'
 if (-not $Model) {
-    $Model = if ($ModelProvider -eq 'openrouter') { 'liquid/lfm-2.5-2.6b' } else { 'qwen2.5:7b' }
+    $Model = if ($ModelProvider -eq 'openrouter') { 'liquid/lfm-2.5-2.6b:free' } else { 'qwen2.5:7b' }
 }
 if (-not $ResponseFormat) {
     $ResponseFormat = if ($ModelProvider -eq 'openrouter') { 'json_object' } else { 'json_schema' }
@@ -92,7 +93,7 @@ try {
             Write-Step "Code commit: $Commit"
         }
     }
-    if (-not $CheckWebOnly -and -not (Test-Path -LiteralPath $InputCsv)) {
+    if (-not $CheckWebOnly -and -not $ListModels -and -not (Test-Path -LiteralPath $InputCsv)) {
         throw "Dataset not found: $InputCsv. Update the checkout first."
     }
     Write-Step '[1/5] Preparing Python dependencies'
@@ -100,6 +101,11 @@ try {
         Invoke-Native 'py' @('-3', '-m', 'venv', '.venv')
     }
     $Python = (Resolve-Path '.venv/Scripts/python.exe').Path
+    if ($ListModels) {
+        Write-Step 'Listing currently advertised free Liquid models; no generation, tokenizer download or key prompt.'
+        Invoke-Native $Python @('-m', 'scope.openrouter', '--list-models', '--prefix', 'liquid/')
+        return
+    }
     if (-not $SkipInstall) {
         Invoke-Native $Python @('-m', 'pip', 'install', '--disable-pip-version-check', '-q', '-c', 'requirements-free-web.lock', '-e', '.[free-web,token-budget]')
     } else {

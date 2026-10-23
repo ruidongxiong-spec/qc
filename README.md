@@ -97,7 +97,7 @@ MuSiQue 官方 Ans/Full 的 train、dev、test 六份完整数据已导出 CSV�
 
 ## Windows 免费运行一条真实数据
 
-默认使用 **OpenRouter `liquid/lfm-2.5-2.6b` + DDGS + Jina**，无需安装或启动 Ollama。准备 Python 3.11+、Git、Clash 和 [OpenRouter API key](https://openrouter.ai/settings/keys)，然后执行：
+默认使用 **OpenRouter `liquid/lfm-2.5-2.6b:free` + DDGS + Jina**，无需安装或启动 Ollama。准备 Python 3.11+、Git、Clash 和 [OpenRouter API key](https://openrouter.ai/settings/keys)，然后执行：
 
 ```powershell
 cd D:\qc
