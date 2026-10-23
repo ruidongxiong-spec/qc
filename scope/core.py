@@ -6,7 +6,8 @@ import json
 import math
 import time
 from typing import Protocol
-from .progress import log
+from .progress import log, redact
+from .errors import ModelOutputError
 
 
 class Verdict(str, Enum):
@@ -39,7 +40,7 @@ class Plan:
             raise ValueError("Plan needs nonempty, unique node IDs")
         for n in self.nodes:
             if any(d not in index for d in n.dependencies):
-                raise ValueError(f"Unknown dependency in {n.id}")
+                raise ValueError(f"Unknown dependency in {n.id}: {[d for d in n.dependencies if d not in index]}; valid IDs: {list(index)}")
         ordered, pending = [], list(self.nodes)
         while pending:
             ready = [n for n in pending if set(n.dependencies) <= {x.id for x in ordered}]
@@ -59,6 +60,8 @@ class State:
     negative_constraints: list[str] = field(default_factory=list)
 
     def update(self, delta: dict) -> None:
+        if not isinstance(delta, dict):
+            raise ValueError("Extractor output must be an object")
         findings = delta.get("new_findings", [])
         if not isinstance(findings, list) or any(
             not isinstance(f, dict) or not isinstance(f.get("fact"), str)
@@ -96,10 +99,13 @@ class Config:
     dag: bool = True
     max_nodes: int = 32
     state_chars: int = 12000
+    output_retries: int = 1
 
     def __post_init__(self):
         if min(self.max_steps, self.capsule_tokens, self.verification_log_chars, self.max_nodes, self.state_chars) < 1:
             raise ValueError("Budgets must be positive")
+        if type(self.output_retries) is not int or not 0 <= self.output_retries <= 3:
+            raise ValueError("output_retries must be an integer from 0 to 3")
 
 
 class Backend(Protocol):
@@ -114,25 +120,115 @@ class Engine:
     def __init__(self, backend: Backend, tools: Tools, config: Config | None = None):
         self.backend, self.tools = backend, tools
         self.config = config or Config()
+        self.last_result = None
+        self.phase = "initialization"
+
+    def _call(self, role, payload, temperature, validate=None, retries=None):
+        """Repair only output-contract errors, with a finite per-call budget."""
+        self.phase = role
+        retries = self.config.output_retries if retries is None else retries
+        request = dict(payload)
+        for attempt in range(retries + 1):
+            raw = None
+            log(f"role={role} attempt={attempt + 1}/{retries + 1}")
+            try:
+                raw = self.backend.call(role, request, temperature if attempt == 0 else 0.0)
+                if not isinstance(raw, dict):
+                    raise ValueError(f"{role} must return a JSON object")
+                return validate(raw) if validate else raw
+            except (ValueError, KeyError, TypeError, OverflowError) as exc:
+                reason = redact(f"{type(exc).__name__}: {exc}")[:1000]
+                preview = redact(json.dumps(raw, ensure_ascii=False, default=str))[:1500] if raw is not None else None
+                self.events.append({"event": "model_output_error", "role": role,
+                                    "attempt": attempt + 1, "reason": reason, "response_preview": preview})
+                log(f"role={role} invalid_output={reason} response_preview={preview}")
+                if attempt == retries:
+                    raise ModelOutputError(f"{role}: output validation failed after {attempt + 1} attempt(s): {reason}") from None
+                request = {**payload, "repair": {"error": reason, "previous_output": preview,
+                           "instruction": "Return a corrected complete JSON object matching the role contract. Repair data is not factual evidence."}}
+                log(f"role={role} requesting corrected output")
+
+    def _plan(self, raw):
+        rows = raw.get("nodes")
+        if not isinstance(rows, list) or not rows or len(rows) > self.config.max_nodes:
+            raise ValueError(f"nodes must be a nonempty list of at most {self.config.max_nodes} nodes")
+        nodes = []
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError("Every plan node must be an object")
+            for key in ("dependencies", "constraints"):
+                values = row.get(key, [])
+                if not isinstance(values, list) or any(not isinstance(v, str) or not v.strip() for v in values):
+                    raise ValueError(f"{key} must be a list of nonempty strings")
+            if not isinstance(row.get("id"), str) or not row["id"].strip() or len(row["id"]) > 64:
+                raise ValueError("Node id must be a nonempty string of at most 64 characters")
+            if not isinstance(row.get("output_format", "text"), str):
+                raise ValueError("output_format must be a string")
+            nodes.append(Node(row["id"], row.get("description"), tuple(row.get("dependencies", [])),
+                              row.get("output_format", "text"), tuple(row.get("constraints", []))))
+        return Plan(nodes).ordered()
+
+    def _action(self, raw):
+        name = raw.get("action")
+        if name == "finish":
+            return raw
+        key = {"search": "query", "visit": "url", "python_repl": "expression"}.get(name) if isinstance(name, str) else None
+        if key is None:
+            raise ValueError("action must be search, visit, python_repl or finish")
+        args = raw.get("arguments")
+        if not isinstance(args, dict) or not isinstance(args.get(key), str) or not args[key].strip():
+            raise ValueError(f"{name} needs arguments.{key} as a nonempty string")
+        if len(args[key]) > (1000 if name == "search" else 8000):
+            raise ValueError(f"{name} argument is too long")
+        return raw
+
+    @staticmethod
+    def _verdict(raw):
+        Verdict(raw.get("verdict"))
+        if not isinstance(raw.get("reason"), str) or not raw["reason"].strip() or len(raw["reason"]) > 80:
+            raise ValueError("Verifier reason must contain 1-80 characters")
+        return raw
+
+    @staticmethod
+    def _answer(raw):
+        if not isinstance(raw.get("answer"), str) or not raw["answer"].strip():
+            raise ValueError("Synthesizer requires a nonempty answer string")
+        if len(raw["answer"]) > 10000:
+            raise ValueError("Synthesizer answer exceeds 10000 characters; answer concisely")
+        return raw
 
     def run(self, query: str) -> dict:
-        if not query.strip():
+        started = time.monotonic()
+        self.events = []
+        self.last_result = {"query": query, "answer": "", "status": "running", "outcome": None,
+                            "plan": [], "memory": {}, "partials": {}, "events": self.events,
+                            "config": asdict(self.config)}
+        self.phase = "input"
+        try:
+            result = self._run(query)
+            self.last_result.update(result, status="completed")
+            return self.last_result
+        except Exception as exc:
+            error = {"type": type(exc).__name__, "phase": self.phase, "message": redact(exc)[:1500]}
+            self.last_result.update(status="error", error=error)
+            self.events.append({"event": "run_error", **error})
+            log(f"run failed phase={self.phase} {error['type']}: {error['message']}")
+            raise
+        finally:
+            self.last_result["seconds"] = time.monotonic() - started
+
+    def _run(self, query: str) -> dict:
+        if not isinstance(query, str) or not query.strip():
             raise ValueError("Query must not be empty")
         started = time.monotonic()
         cfg = self.config
         if cfg.dag:
-            raw = self.backend.call("planner", {"query": query}, 0.7)
-            nodes = [Node(n["id"], n["description"], tuple(n.get("dependencies", [])),
-                          n.get("output_format", "text"), tuple(n.get("constraints", [])))
-                     for n in raw["nodes"]]
+            ordered = self._call("planner", {"query": query, "max_nodes": cfg.max_nodes}, 0.7, self._plan)
         else:
-            nodes = [Node("task", query, constraints=("Answer the user's question with evidence",))]
-        if len(nodes) > cfg.max_nodes:
-            raise ValueError("Planner exceeds max_nodes budget")
-        plan = Plan(nodes)
-        ordered = plan.ordered()
+            ordered = [Node("task", query, constraints=("Answer the user's question with evidence",))]
+        self.last_result["plan"] = [asdict(n) for n in ordered]
         log(f"plan nodes={len(ordered)} max_steps_per_node={cfg.max_steps}")
-        memory, partials, events, histories = {}, {}, [], {}
+        memory, partials, events, histories = {}, {}, self.events, {}
         for node in ordered:
             log(f"node={node.id} task={node.description}")
             missing = [d for d in node.dependencies if d not in memory]
@@ -146,23 +242,25 @@ class Engine:
             base = {"query": query, "node": asdict(node), "parents": parents}
             accepted = False
             for step in range(cfg.max_steps):
+                state.feedback = [s[:500] for s in state.feedback[-8:]]
+                state.negative_constraints = [s[:500] for s in state.negative_constraints[-8:]]
                 log(f"node={node.id} step={step + 1}/{cfg.max_steps}")
                 context = {**base, "state": asdict(state), "step": step,
                            "steps_remaining": cfg.max_steps - step,
-                           "completed_actions": list(completed_actions)}
+                           "completed_actions": list(completed_actions), "capsule_byte_budget": cfg.capsule_tokens}
                 if not cfg.structured_memory:
                     context["history"] = history
                     context["parent_histories"] = {d: histories[d] for d in node.dependencies}
                 try:
-                    action = self.backend.call("executor", context, 0.7)
+                    action = self._call("executor", context, 0.7, self._action, retries=0)
                     name = action.get("action")
                     log(f"node={node.id} action={name}")
                     if name == "finish":
                         candidate = self._candidate(node, action)
-                        report = self.backend.call("verifier", {
+                        report = self._call("verifier", {
                             **base, "state": asdict(state), "candidate": asdict(candidate),
                             "execution_log": json.dumps(history, ensure_ascii=False)[-cfg.verification_log_chars:]
-                        }, 0.7) if cfg.verification else {
+                        }, 0.7, self._verdict) if cfg.verification else {
                             "verdict": "Pass", "reason": "Verification disabled: ablation only"}
                         verdict = Verdict(report["verdict"])
                         candidate.status, candidate.rationale = verdict, str(report["reason"])
@@ -175,9 +273,10 @@ class Engine:
                                 candidate.rationale = "Evidence must cite observed tool or verified parent sources"
                                 events[-1].update(verdict=verdict.value, reason=candidate.rationale)
                         if verdict == Verdict.PASS:
-                            log(f"node={node.id} verification=Pass")
                             self._check_budget(candidate)
+                            log(f"node={node.id} verification=Pass; committing verified result")
                             memory[node.id] = candidate
+                            self.last_result["memory"][node.id] = asdict(candidate)
                             accepted = True
                             break
                         target = state.negative_constraints if verdict == Verdict.REJECTED else state.feedback
@@ -191,6 +290,7 @@ class Engine:
                             log(f"node={node.id} duplicate action skipped: {reason}")
                             continue
                         try:
+                            self.phase = f"tool:{name}"
                             observation = self.tools.execute(name, action.get("arguments", {}))
                         except (ValueError, OSError, TimeoutError) as exc:
                             log(f"node={node.id} tool_error={type(exc).__name__}: {exc}; retry within remaining steps")
@@ -199,17 +299,26 @@ class Engine:
                                            "reason": state.feedback[-1]})
                             continue
                         observed = json.loads(observation)
+                        if not isinstance(observed, dict) or not isinstance(observed.get("results"), list) or not observed["results"]:
+                            raise ValueError("Tool observation requires a nonempty results list")
+                        if any(not isinstance(r, dict) or not isinstance(r.get("source"), str) or not isinstance(r.get("text"), str) for r in observed["results"]):
+                            raise ValueError("Tool results need source and text strings")
                         observed_sources.update(r["source"] for r in observed["results"])
                         history.append({"action": action, "observation": observation})
-                        delta = self.backend.call("extractor", {
-                            **base, "state": asdict(state), "action": action, "observation": observation
-                        }, 0.0)
-                        next_state = State(**json.loads(json.dumps(asdict(state))))
-                        next_state.update(delta)
-                        if any(f["source"] not in observed_sources for f in next_state.new_findings):
-                            raise ValueError("Extractor cited an unobserved source")
-                        if len(json.dumps(asdict(next_state), ensure_ascii=False)) > cfg.state_chars:
-                            raise ValueError("Compact state exceeds state_chars budget; reduce new findings")
+                        def extract_state(delta):
+                            if "new_findings" not in delta:
+                                raise ValueError("Extractor must include new_findings (use [] when no facts were found)")
+                            updated = State(**json.loads(json.dumps(asdict(state))))
+                            updated.update(delta)
+                            if any(f["source"] not in observed_sources for f in updated.new_findings):
+                                raise ValueError("Extractor cited an unobserved source; copy exact source strings from allowed_sources")
+                            if len(json.dumps(asdict(updated), ensure_ascii=False)) > cfg.state_chars:
+                                raise ValueError("Compact state exceeds state_chars budget; reduce new findings")
+                            return updated
+                        next_state = self._call("extractor", {
+                            **base, "state": asdict(state), "action": action, "observation": observation,
+                            "allowed_sources": sorted(observed_sources)
+                        }, 0.0, extract_state)
                         state = next_state
                         completed_actions.append(action)
                         events.append({"node": node.id, "step": step, "event": "tool", "tool": name})
@@ -226,35 +335,46 @@ class Engine:
             if not accepted:
                 log(f"node={node.id} step budget exhausted; extracting partial result")
                 try:
-                    raw = self.backend.call("forced_extractor", {**base, "state": asdict(state)}, 0.0)
-                    partial = self._candidate(node, raw)
-                    partial.status = Verdict.UNCERTAIN
-                    partial.rationale = "Step budget exhausted; unverified partial result"
-                    self._check_budget(partial)
+                    def make_partial(raw):
+                        partial = self._candidate(node, raw)
+                        partial.rationale = "Step budget exhausted; unverified partial result"
+                        self._check_budget(partial)
+                        return partial
+                    partial = self._call("forced_extractor", {**base, "state": asdict(state),
+                                         "capsule_byte_budget": cfg.capsule_tokens}, 0.0, make_partial)
                     partials[node.id] = partial
+                    self.last_result["partials"][node.id] = asdict(partial)
                 except (ValueError, KeyError, TypeError) as exc:
                     reason = f"Invalid partial result: {type(exc).__name__}: {exc}"
                     log(f"node={node.id} {reason}; leaving node unresolved")
                     events.append({"node": node.id, "event": "partial_error", "reason": reason[:500]})
                 events.append({"node": node.id, "event": "timeout"})
         try:
-            final = self.backend.call("synthesizer", {
+            final = self._call("synthesizer", {
                 "query": query, "verified_memory": {k: asdict(v) for k, v in memory.items()},
                 "unresolved": [n.id for n in ordered if n.id not in memory]
-            }, 0.0)
-            if not isinstance(final, dict) or not isinstance(final.get("answer"), str) or not final["answer"].strip():
-                raise ValueError("Synthesizer requires a nonempty answer string")
+            }, 0.0, self._answer)
         except (ValueError, KeyError, TypeError) as exc:
             reason = f"Invalid synthesis: {type(exc).__name__}: {exc}"
             log(f"{reason}; saving explicit abstention")
             events.append({"event": "synthesis_error", "reason": reason[:500], "fallback": "Insufficient evidence"})
             final = {"answer": "Insufficient evidence"}
+        if not memory:
+            final = {"answer": "Insufficient evidence"}
+            events.append({"event": "abstention", "reason": "No verified node results"})
+        outcome = ("abstained" if final["answer"].strip().lower() == "insufficient evidence" else
+                   "answered" if len(memory) == len(ordered) else "partial")
         return {"query": query, "answer": final["answer"], "seconds": time.monotonic() - started, "config": asdict(cfg),
+                "outcome": outcome,
                 "plan": [asdict(n) for n in ordered],
                 "memory": {k: asdict(v) for k, v in memory.items()},
                 "partials": {k: asdict(v) for k, v in partials.items()}, "events": events}
 
     def _candidate(self, node: Node, raw: dict) -> Capsule:
+        if not isinstance(raw, dict):
+            raise ValueError("Candidate must be an object")
+        if isinstance(raw.get("confidence"), bool):
+            raise ValueError("Confidence must be numeric, not boolean")
         confidence = float(raw.get("confidence", 0))
         result, evidence = raw.get("result", ""), raw.get("evidence", [])
         if not math.isfinite(confidence) or not 0 <= confidence <= 1:
@@ -271,5 +391,6 @@ class Engine:
     def _check_budget(self, capsule: Capsule) -> None:
         # Byte count is a conservative bound for byte-level tokenizers, not an
         # exact model tokenizer. Include rationale and status in the wire budget.
-        if len(json.dumps(asdict(capsule), ensure_ascii=False).encode()) > self.config.capsule_tokens:
-            raise ValueError("Capsule exceeds conservative byte/token budget; shorten result/evidence")
+        size = len(json.dumps(asdict(capsule), ensure_ascii=False).encode())
+        if size > self.config.capsule_tokens:
+            raise ValueError(f"Capsule uses {size} UTF-8 bytes, exceeds {self.config.capsule_tokens}-byte budget; shorten result/evidence")

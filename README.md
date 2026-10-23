@@ -54,7 +54,7 @@ Python 工具目前仅支持受限算术表达式，不执行任意 Python。这
 .venv/bin/python -m scope.cli evaluate --input /path/to/data.jsonl --output runs/judged.jsonl --runs 3 --judge-model gpt-4o
 ```
 
-默认报告标准化 EM 和 token F1；只有指定 `--judge-model` 才调用独立 judge、报告语义准确率（温度 0.1）。judge 需在同一 API 端点可用。每个样本立即落盘，异常会以非零退出码中止，不把失败计成成功；只在完整执行后写 summary。不要将中断运行遗留的 summary 当作本次结果。比较实验应使用独立输出路径。
+默认报告标准化 EM 和 token F1；只有指定 `--judge-model` 才调用独立 judge、报告语义准确率（温度 0.1）。judge 需在同一 API 端点可用。每个样本完成或失败后立即落盘，并原子更新 summary。单条失败会保留状态、错误阶段和已完成过程，批量运行继续下一条；有运行失败时最终退出码为 1。EM/F1 以已尝试样本为分母，运行失败贡献 0，详细记录中的 metrics 为 null；completed、failed 和 outcomes 分开统计。expected 与 attempted 不同时表示尚未完成全部计划样本。比较实验应使用独立输出路径。
 
 支持 `--ablation no-dag|no-memory|no-verification`。这是可操作的研究变体，论文未提供原始消融提示词，不能断言等价于作者设置。`no-memory` 在状态之外加入本地与父节点原始轨迹，保留输出 Capsule 接口；详细差异见 [复现说明](docs/reproduction.md)。
 
@@ -100,7 +100,7 @@ MuSiQue 官方 Ans/Full 的 train、dev、test 六份完整数据已导出 CSV�
 先安装 Python 3.11+、Git 和 [Ollama](https://ollama.com/download/windows)。在 `D:\qc` 的 PowerShell 中同步并运行：
 
 ```powershell
-git pull --ff-only origin main
+git -c http.proxy=http://127.0.0.1:7890 pull --ff-only origin main
 powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -PullModel
 ```
 
@@ -119,10 +119,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -Model qwen2
 
 Jina 模式将网页地址交给 Jina 处理，不做本地 DNS 预检查或地址拦截；通过 Clash HTTP 代理连接时，由代理解析服务域名。direct 模式保留原有本地检查。DDGS/Jina 公共访问可能限流；连接成功不保证所有网页可读取。Ollama 必须运行，`-PullModel` 仅负责下载模型。网页检查成功后才会测试本地模型的 JSON 响应并执行真实评测。
 
-单条 Windows 脚本默认启用实时日志，输出阶段、题目、子任务/步数、模型角色与调用耗时、搜索词/访问链接、缓存、工具错误、验证结果及最终答案/评分。看到 `START model ... timeout=120s` 表示正在等待该次模型请求，完成后打印 `DONE` 和耗时；失败打印 `FAIL`。也可通过 `python -m scope.cli ... --verbose` 或 `SCOPE_VERBOSE=1` 启用。日志写入 stderr 并立即刷新，JSON 结果文件格式不变；不打印完整提示词或配置的 API key。
+单条 Windows 脚本默认自动保存同一前缀的三类文件：
 
-Windows 单条试跑默认设置 `SCOPE_DDGS_BACKEND=auto`，使用 DDGS 的多搜索引擎模式，减少单独 DuckDuckGo 返回空结果造成的中断。可用 `-SearchBackend duckduckgo` 显式限定引擎。其他入口仍默认 `duckduckgo`，可通过同名环境变量选择；日志、缓存请求和单条评测来源信息记录该配置，矩阵续跑也会检查配置是否一致。`auto` 不保证联网成功，也不表示结果全部来自 DuckDuckGo，正式比较实验应固定同一配置。
+- `runs/free-one-*.log`：配置、代码版本、阶段、调用耗时、修正原因与错误。长请求每 15 秒输出 `WAIT`。Windows 默认用 stdout 显示，避免 PowerShell 5 将 stderr 日志当作失败；日志文件为 UTF-8。
+- `runs/free-one-*.jsonl`：逐题答案、参考答案、评分、状态、事件和工具审计；运行失败也有记录。
+- `runs/free-one-*.summary.json`：已尝试、完成、失败、回答/部分回答/弃答统计及 EM/F1。预检查失败时只有日志，尚未开始题目评测。
 
-当前锁定的 DDGS 9.16.0 禁用了 Bing 文本引擎；`-SearchBackend bing` 不受支持，请用 `auto` 或报错中列出的可用引擎。适配器拒绝无效配置，防止库偷偷回退为 auto 后仍记录为 Bing。执行器会看到已成功执行的动作并跳过完全相同的重复动作；步数耗尽后，若模型返回超长或格式错误的部分结果，会记录 `partial_error`，将该节点保留为未解决并继续汇总，不把无效部分结果传给依赖节点。完成评测仍可能得到“证据不足”及低分。
+常用选项：`-SkipInstall` 跳过已完成的依赖安装；`-SkipWebCheck` 显式跳过预检查（正式评测仍使用真实工具）；`-MaxSteps 8` 设置每节点步数；`-OutputRetries 1` 设置模型输出的额外修正次数；`-ModelTimeout 120` 设置单次模型 HTTP 请求超时。`-PullModel` 只在需要下载模型时使用。CLI 可使用 `--verbose --log-file runs/debug.log --output-retries 1`。
 
-汇总模型返回空答案或无效 JSON/格式时，会记录 `synthesis_error`，以 `Insufficient evidence` 明确弃答，仍保存 JSONL 和评分；这表示流程完成，不表示答题成功。模型网络错误仍作为运行失败报告。重复动作判断只针对工具调用和内容提取均已成功的动作，提取失败后允许重试。
+Windows 默认 `SCOPE_DDGS_BACKEND=auto`，其他入口默认 `duckduckgo`，可以通过同名环境变量选择。DDGS 9.16.0 禁用了 Bing 文本引擎，`bing` 会明确报错。日志、缓存、评测来源和矩阵续跑均记录搜索配置；auto 不保证结果来自同一搜索引擎。
+
+模型输出统一经过结构校验与有限修正；默认每次最多额外修正 1 次，执行器错误使用原有步数预算。规划持续无效或模型服务不可用会记为运行失败；节点未验证、部分结果无效或汇总无法生成有效答案会明确记为未解决/弃答。修正不会把参考答案发送给模型，也不自动删除依赖、放宽证据校验或增加步数。完整策略、故障处理矩阵和复测步骤见 [运行可靠性方案](docs/runtime-reliability.md)。

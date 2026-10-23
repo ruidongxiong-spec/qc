@@ -48,7 +48,7 @@ class ScopeTests(unittest.TestCase):
                     return {"new_findings": [{"fact": "invented", "source": "unobserved"}]}
                 return super().call(role, payload, temperature)
         backend = BadExtractionOnce()
-        result = Engine(backend, DemoTools()).run("test")
+        result = Engine(backend, DemoTools(), Config(output_retries=0)).run("test")
         self.assertEqual(result["answer"], "28")
         self.assertTrue(any(e["event"] == "schema_error" for e in result["events"]))
         self.assertFalse(any(e["event"] == "duplicate_action" for e in result["events"]))

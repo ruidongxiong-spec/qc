@@ -68,7 +68,12 @@ class Retrieval:
     def execute(self, name, arguments):
         provider = self.search if name == "search" else self.reader
         with stage(f"tool action={name} provider={provider} arguments={json.dumps(arguments, ensure_ascii=False)}"):
-            return self._execute(name, arguments)
+            try:
+                return self._execute(name, arguments)
+            except Exception as exc:
+                self.audit.append({"action": name, "provider": provider, "status": "error",
+                                   "error_type": type(exc).__name__, "retrieved_at": datetime.now(timezone.utc).isoformat()})
+                raise
 
     def _execute(self, name, arguments):
         if name not in {"search", "visit"}:
@@ -80,25 +85,37 @@ class Retrieval:
         digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         path = self.cache_dir / (digest + ".json")
         hit = path.exists()
-        log(f"tool cache={'hit' if hit else 'miss'}")
         if hit:
-            record = json.loads(path.read_text(encoding="utf-8"))
-            if record["request"] != identity:
-                raise ToolError("Cache identity mismatch")
-        else:
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(record, dict) or record.get("request") != identity or not isinstance(record.get("retrieved_at"), str):
+                    raise ValueError("Cache identity/metadata mismatch")
+                self._validate_results(record.get("results"))
+            except (ValueError, TypeError, UnicodeError) as exc:
+                log(f"tool cache invalid ({type(exc).__name__}); fetching fresh response")
+                hit = False
+        log(f"tool cache={'hit' if hit else 'miss'}")
+        if not hit:
             results = self._search(arguments["query"]) if name == "search" else self._visit(arguments["url"])
-            if not results:
-                raise ToolError("Provider returned no usable results")
+            self._validate_results(results)
             record = {"request": identity, "retrieved_at": datetime.now(timezone.utc).isoformat(), "results": results}
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             temporary = path.with_suffix(".tmp")
             temporary.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
             temporary.replace(path)
         self.audit.append({"action": name, "provider": self.search if name == "search" else self.reader,
-                           "cache_key": digest, "cache_hit": hit, "retrieved_at": record["retrieved_at"]})
+                           "status": "ok", "cache_key": digest, "cache_hit": hit, "retrieved_at": record["retrieved_at"]})
         log(f"tool results={len(record['results'])} text_chars={sum(len(r.get('text', '')) for r in record['results'])}")
         # Provenance survives condensation. Page/search content remains untrusted data.
         return json.dumps(record, ensure_ascii=False)
+
+    @staticmethod
+    def _validate_results(results):
+        if not isinstance(results, list) or not results or any(
+            not isinstance(r, dict) or not isinstance(r.get("source"), str) or not r["source"].strip()
+            or not isinstance(r.get("text"), str) for r in results
+        ):
+            raise ToolError("Provider/cache returned malformed or empty results")
 
     def _search(self, query):
         if not isinstance(query, str) or not query.strip() or len(query) > 1000:

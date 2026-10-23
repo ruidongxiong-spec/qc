@@ -14,6 +14,7 @@ from .core import Config, Engine
 from .evaluation import score
 from .datasets import load_questions
 from .tools import DemoTools, WebTools
+from .progress import redact
 
 
 def fingerprint(value):
@@ -35,6 +36,8 @@ def summarize(records):
         tokens = [r["total_tokens"] for r in ok if r["total_tokens"] is not None]
         seconds = [r["seconds"] for r in ok]
         result.append({"model": name, "attempted": len(rows), "succeeded": len(ok),
+                       "outcomes": {state: sum(r.get("result", {}).get("outcome") == state for r in ok)
+                                    for state in ("answered", "partial", "abstained")},
                        "errors": len(rows) - len(ok),
                        "em_success_only": statistics.mean(r["metrics"]["em"] for r in ok) if ok else None,
                        "f1_success_only": statistics.mean(r["metrics"]["f1"] for r in ok) if ok else None,
@@ -82,7 +85,8 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
             raise ValueError("Output directory must be empty for a new experiment")
         manifest.write_text(json.dumps({"fingerprint": identity, "demo": demo, "runs": runs,
                                        "dataset_hash": fingerprint(rows), "models": names,
-                                       "config": asdict(config), "search": search, "reader": reader}, indent=2), encoding="utf-8")
+                                       "config": asdict(config), "search": search, "reader": reader,
+                                       "ddgs_backend": os.environ.get("SCOPE_DDGS_BACKEND", "duckduckgo") if search == "ddgs" else None}, indent=2), encoding="utf-8")
     done = {(r["model_name"], r["run"], r["id"]) for r in records}
     with log.open("a", encoding="utf-8") as handle:
         for model in models:
@@ -93,6 +97,7 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
                         continue
                     started = time.monotonic()
                     record = {"model_name": model["name"], "run": run, "id": row["id"], "demo": demo}
+                    engine = None
                     try:
                         if demo:
                             backend, tools = DemoBackend(), DemoTools()
@@ -100,7 +105,8 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
                             backend = OpenAIBackend(base_url=model["base_url"], model=model["model"],
                                                     key=os.environ.get(model.get("api_key_env", "SCOPE_API_KEY"), ""))
                             tools = WebTools(search=search, reader=reader, cache_dir=output / "retrieval-cache")
-                        result = Engine(backend, tools, config).run(row["question"])
+                        engine = Engine(backend, tools, config)
+                        result = engine.run(row["question"])
                         usage = getattr(backend, "usage", [])
                         complete_usage = bool(usage) and all(type(u.get("total_tokens")) is int for u in usage)
                         metrics = score(result["answer"], row["answer"])
@@ -109,9 +115,10 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
                                       retrieval_audit=tools.retrieval.audit if hasattr(tools, "retrieval") else [],
                                       verified_node_rate=len(result["memory"]) / len(result["plan"]),
                                       verification_failures=sum(e["event"] == "verification" and e["verdict"] != "Pass" for e in result["events"]))
-                    except (RuntimeError, ValueError, KeyError, TypeError, OSError) as exc:
-                        # Store the class, not arbitrary provider exception text containing URLs/keys.
-                        record.update(status="error", error_type=type(exc).__name__)
+                    except Exception as exc:
+                        record.update(status="error", error_type=type(exc).__name__, error=redact(exc)[:1500])
+                        if engine is not None:
+                            record.update(result=engine.last_result, error_phase=engine.phase)
                     record["seconds"] = time.monotonic() - started
                     handle.write(json.dumps(record, ensure_ascii=False) + "\n")
                     handle.flush()
