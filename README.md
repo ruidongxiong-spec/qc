@@ -118,3 +118,5 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -Model qwen2
 ```
 
 Jina 模式将网页地址交给 Jina 处理，不做本地 DNS 预检查或地址拦截；通过 Clash HTTP 代理连接时，由代理解析服务域名。direct 模式保留原有本地检查。DDGS/Jina 公共访问可能限流；连接成功不保证所有网页可读取。Ollama 必须运行，`-PullModel` 仅负责下载模型。网页检查成功后才会测试本地模型的 JSON 响应并执行真实评测。
+
+单条 Windows 脚本默认启用实时日志，输出阶段、题目、子任务/步数、模型角色与调用耗时、搜索词/访问链接、缓存、工具错误、验证结果及最终答案/评分。看到 `START model ... timeout=120s` 表示正在等待该次模型请求，完成后打印 `DONE` 和耗时；失败打印 `FAIL`。也可通过 `python -m scope.cli ... --verbose` 或 `SCOPE_VERBOSE=1` 启用。日志写入 stderr 并立即刷新，JSON 结果文件格式不变；不打印完整提示词或配置的 API key。

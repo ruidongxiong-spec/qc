@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 
 from .tools import public_url
+from .progress import log, stage
 
 
 class ToolError(ValueError):
@@ -36,7 +37,8 @@ def fetch(url, data=None, headers=None, jina_endpoint=False):
             return raw.decode(r.headers.get_content_charset() or "utf-8", errors="replace"), r.headers.get_content_type()
     except urllib.error.HTTPError as exc:
         raise ToolError(f"HTTP {exc.code} from {urllib.parse.urlsplit(url).hostname}") from None
-    except urllib.error.URLError:
+    except urllib.error.URLError as exc:
+        log(f"HTTP network error host={urllib.parse.urlsplit(url).hostname}: {exc.reason}")
         raise ToolError(f"Network failure for {urllib.parse.urlsplit(url).hostname}") from None
     except http.client.HTTPException as exc:
         raise ToolError(f"HTTP transport failure ({type(exc).__name__}) for {urllib.parse.urlsplit(url).hostname}") from None
@@ -54,6 +56,11 @@ class Retrieval:
         self.audit = []
 
     def execute(self, name, arguments):
+        provider = self.search if name == "search" else self.reader
+        with stage(f"tool action={name} provider={provider} arguments={json.dumps(arguments, ensure_ascii=False)}"):
+            return self._execute(name, arguments)
+
+    def _execute(self, name, arguments):
         if name not in {"search", "visit"}:
             raise ToolError("Unknown retrieval action")
         identity = {"version": 1, "action": name, "arguments": arguments,
@@ -63,6 +70,7 @@ class Retrieval:
         digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         path = self.cache_dir / (digest + ".json")
         hit = path.exists()
+        log(f"tool cache={'hit' if hit else 'miss'}")
         if hit:
             record = json.loads(path.read_text(encoding="utf-8"))
             if record["request"] != identity:
@@ -78,6 +86,7 @@ class Retrieval:
             temporary.replace(path)
         self.audit.append({"action": name, "provider": self.search if name == "search" else self.reader,
                            "cache_key": digest, "cache_hit": hit, "retrieved_at": record["retrieved_at"]})
+        log(f"tool results={len(record['results'])} text_chars={sum(len(r.get('text', '')) for r in record['results'])}")
         # Provenance survives condensation. Page/search content remains untrusted data.
         return json.dumps(record, ensure_ascii=False)
 
@@ -94,6 +103,7 @@ class Retrieval:
                          or os.environ.get("https_proxy"))
                 rows = DDGS(timeout=20, proxy=proxy).text(query, max_results=5, backend="duckduckgo", region="us-en")
             except Exception as exc:
+                log(f"DDGS underlying error: {type(exc).__name__}: {exc}")
                 raise ToolError(f"DDGS retrieval failed ({type(exc).__name__}); check proxy, connectivity and rate limits") from None
             return [{"source": r["href"], "title": r.get("title", ""), "text": r.get("body", "")[:4000]} for r in rows]
         if self.search == "serper":

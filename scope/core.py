@@ -6,6 +6,7 @@ import json
 import math
 import time
 from typing import Protocol
+from .progress import log
 
 
 class Verdict(str, Enum):
@@ -130,10 +131,13 @@ class Engine:
             raise ValueError("Planner exceeds max_nodes budget")
         plan = Plan(nodes)
         ordered = plan.ordered()
+        log(f"plan nodes={len(ordered)} max_steps_per_node={cfg.max_steps}")
         memory, partials, events, histories = {}, {}, [], {}
         for node in ordered:
+            log(f"node={node.id} task={node.description}")
             missing = [d for d in node.dependencies if d not in memory]
             if missing:
+                log(f"node={node.id} blocked missing_dependencies={missing}")
                 events.append({"node": node.id, "event": "blocked", "dependencies": missing})
                 continue
             parents = {d: asdict(memory[d]) for d in node.dependencies}
@@ -142,6 +146,7 @@ class Engine:
             base = {"query": query, "node": asdict(node), "parents": parents}
             accepted = False
             for step in range(cfg.max_steps):
+                log(f"node={node.id} step={step + 1}/{cfg.max_steps}")
                 context = {**base, "state": asdict(state), "step": step,
                            "steps_remaining": cfg.max_steps - step}
                 if not cfg.structured_memory:
@@ -150,6 +155,7 @@ class Engine:
                 try:
                     action = self.backend.call("executor", context, 0.7)
                     name = action.get("action")
+                    log(f"node={node.id} action={name}")
                     if name == "finish":
                         candidate = self._candidate(node, action)
                         report = self.backend.call("verifier", {
@@ -168,16 +174,19 @@ class Engine:
                                 candidate.rationale = "Evidence must cite observed tool or verified parent sources"
                                 events[-1].update(verdict=verdict.value, reason=candidate.rationale)
                         if verdict == Verdict.PASS:
+                            log(f"node={node.id} verification=Pass")
                             self._check_budget(candidate)
                             memory[node.id] = candidate
                             accepted = True
                             break
                         target = state.negative_constraints if verdict == Verdict.REJECTED else state.feedback
+                        log(f"node={node.id} verification={verdict.value} reason={candidate.rationale}")
                         target.append(candidate.rationale)
                     elif name in ("search", "visit", "python_repl"):
                         try:
                             observation = self.tools.execute(name, action.get("arguments", {}))
                         except (ValueError, OSError, TimeoutError) as exc:
+                            log(f"node={node.id} tool_error={type(exc).__name__}: {exc}; retry within remaining steps")
                             state.feedback.append(f"Tool error: {type(exc).__name__}: {exc}")
                             events.append({"node": node.id, "step": step, "event": "tool_error", "tool": name,
                                            "reason": state.feedback[-1]})
@@ -199,6 +208,7 @@ class Engine:
                     else:
                         raise ValueError(f"Invalid action: {name}")
                 except (ValueError, KeyError, TypeError, SyntaxError, ZeroDivisionError) as exc:
+                    log(f"node={node.id} invalid_output={type(exc).__name__}: {exc}")
                     reason = f"Invalid local output: {type(exc).__name__}: {exc}"
                     state.feedback.append(reason[:500])
                     # Bound accumulated diagnostic context independently of tool findings.
@@ -206,6 +216,7 @@ class Engine:
                     events.append({"node": node.id, "step": step, "event": "schema_error", "reason": reason[:500]})
             histories[node.id] = history
             if not accepted:
+                log(f"node={node.id} step budget exhausted; extracting partial result")
                 raw = self.backend.call("forced_extractor", {**base, "state": asdict(state)}, 0.0)
                 partial = self._candidate(node, raw)
                 partial.status = Verdict.UNCERTAIN
