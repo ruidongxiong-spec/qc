@@ -22,18 +22,20 @@ def main():
     parser.add_argument("--limit", type=int)
     parser.add_argument("--ablation", choices=["full", "no-dag", "no-memory", "no-verification"], default="full")
     parser.add_argument("--judge-model", help="Optional semantic judge model at same endpoint")
+    parser.add_argument("--search", choices=["ddgs", "searxng", "wikipedia", "serper"])
+    parser.add_argument("--reader", choices=["direct", "jina"])
     args = parser.parse_args()
     cfg = Config(max_steps=args.max_steps, dag=args.ablation != "no-dag",
                  structured_memory=args.ablation != "no-memory", verification=args.ablation != "no-verification")
     backend = DemoBackend() if args.command == "demo" else OpenAIBackend()
-    tools = DemoTools() if args.command == "demo" else WebTools()
+    tools = DemoTools() if args.command == "demo" else WebTools(search=args.search, reader=args.reader)
     engine = Engine(backend, tools, cfg)
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)
     if args.command == "evaluate":
         if not args.input or args.runs < 1 or (args.limit is not None and args.limit < 1):
             parser.error("evaluate needs --input, positive --runs and --limit")
-        rows = [json.loads(line) for line in Path(args.input).read_text().splitlines() if line.strip()]
+        rows = [json.loads(line) for line in Path(args.input).read_text(encoding="utf-8").splitlines() if line.strip()]
         rows = rows[:args.limit] if args.limit else rows
         if not rows:
             parser.error("Empty evaluation dataset")
@@ -43,8 +45,8 @@ def main():
             parser.error("Evaluation output already exists; choose a fresh --output path")
         results = []
         provenance = {"dataset_sha256": hashlib.sha256(Path(args.input).read_bytes()).hexdigest(),
-                      "model": backend.model, "python": platform.python_version(), "ablation": args.ablation}
-        with target.open("x") as out:
+                      "model": backend.model, "python": platform.python_version(), "ablation": args.ablation, "search": getattr(getattr(tools, "retrieval", None), "search", args.search or "ddgs"), "reader": getattr(getattr(tools, "retrieval", None), "reader", args.reader or "direct")}
+        with target.open("x", encoding="utf-8") as out:
             for run in range(args.runs):
                 for row in rows:
                     start = time.monotonic()
@@ -64,7 +66,7 @@ def main():
                     out.flush()
         summary = {k: sum(r["metrics"][k] for r in results) / len(results) for k in results[0]["metrics"]}
         summary.update(instances=len(rows), runs=args.runs, completed=len(results))
-        summary_path.write_text(json.dumps(summary, indent=2))
+        summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print(json.dumps(summary, indent=2))
     else:
         if args.command == "run" and not args.query:
@@ -72,7 +74,7 @@ def main():
         result = engine.run(args.query or "How many years separate Ada Lovelace's birth and 1843?")
         if hasattr(backend, "usage"):
             result["usage"] = backend.usage
-        target.write_text(json.dumps(result, indent=2, ensure_ascii=False))
+        target.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
         print(result["answer"])
 
 

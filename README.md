@@ -4,12 +4,12 @@
 
 ## 快速开始
 
-Python 3.11+，运行时只使用标准库，无 GPU 或数据库要求。
+Python 3.11+，核心引擎只使用标准库，无 GPU 或数据库要求；免费网页搜索/正文提取使用可选依赖。
 
 ```bash
 cd /workspace/qc
 python3 -m venv .venv
-.venv/bin/python -m pip install -e .
+.venv/bin/python -m pip install -c requirements-free-web.lock -e ".[free-web]"
 .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python -m scope.cli demo
 ```
@@ -25,10 +25,13 @@ python3 -m venv .venv
 | `SCOPE_BASE_URL` | 兼容 OpenAI 的 API 根路径，含 `/v1`，如本地推理服务 `http://127.0.0.1:8000/v1` |
 | `SCOPE_MODEL` | 服务实际提供的完整模型 ID；论文的模型名称不足以确定具体 checkpoint |
 | `SCOPE_API_KEY` | 端点要求认证时使用 |
-| `SERPER_API_KEY` | Serper 搜索，必需 |
+| `SCOPE_SEARCH_PROVIDER` | 默认 `ddgs`；可选 `searxng` / `wikipedia` / `serper` |
+| `SCOPE_READER_PROVIDER` | 默认 `direct`；可选 `jina` |
+| `SEARXNG_BASE_URL` | 选择 SearXNG 时填写开启 JSON API 的实例 URL |
+| `SERPER_API_KEY` | 仅选择 Serper 时必需 |
 | `JINA_API_KEY` | Jina Reader 可选认证；无密钥时受公共服务限流 |
 
-模型服务必须支持 JSON object response format。远程联网需要放行模型端点域名、`google.serper.dev`、`r.jina.ai`。访问目标网页经 Jina Reader 代理；具体页面可用性需另测。默认 HTTP 客户端保留 TLS 验证；不自动重试付费请求。
+模型服务必须支持 JSON object response format。远程联网需要放行实际模型端点、搜索提供者以及访问的网页域名。选择 Jina 时网页经 `r.jina.ai` 代理；选择 direct 则访问目标站点。具体可用性需实测。默认 HTTP 客户端保留 TLS 验证；不自动重试付费请求。
 
 ```bash
 .venv/bin/python -m scope.cli run --query '你的多跳问题' --output runs/live.json
@@ -64,3 +67,14 @@ Python 工具目前仅支持受限算术表达式，不执行任意 Python。这
 - `tests/`：离线回归测试，含 HTTP 接口契约测试。
 
 当前不包含前后端系统或未经验证的第二创新点。这两部分应在真实模型复现和失败样本分析后推进。
+
+## Windows、模型比较与展示
+
+见 [多模型性能评测](docs/model-performance.md) 和 [架构/展示/免费替代调研](docs/system-demo.md)。Windows 安装入口为 `scripts/setup-windows.ps1`，默认目录 `D:\qc`。
+
+```bash
+python -m scope.benchmark --models examples/models.json --input examples/questions.jsonl --output runs/matrix-demo --runs 3 --demo
+python -m scope.report --input runs/matrix-demo/summary.json --output runs/matrix-demo/report.html
+```
+
+`--demo` 只检查评测流水线。真实运行前必须替换 models.json 的占位模型 ID、配置凭据并去掉 `--demo`；不能据此生成模型排名。

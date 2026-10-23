@@ -118,10 +118,6 @@ class ScopeTests(unittest.TestCase):
             thread.join()
             server.server_close()
 
-
-if __name__ == "__main__":
-    unittest.main()
-
 class EvaluationCLITests(unittest.TestCase):
     def test_three_run_evaluation(self):
         import tempfile
@@ -135,7 +131,7 @@ class EvaluationCLITests(unittest.TestCase):
             dataset = Path(tmp) / "input.jsonl"
             output = Path(tmp) / "results.jsonl"
             dataset.write_text(json.dumps({"id": "test", "question": "test", "answer": "28"}) + "\n")
-            with patch("scope.cli.OpenAIBackend", EvaluationBackend), patch("scope.cli.WebTools", DemoTools), patch(
+            with patch("scope.cli.OpenAIBackend", EvaluationBackend), patch("scope.cli.WebTools", lambda **kwargs: DemoTools()), patch(
                 "sys.argv", ["scope", "evaluate", "--input", str(dataset), "--output", str(output)]):
                 main()
             summary = json.loads(output.with_suffix(".summary.json").read_text())

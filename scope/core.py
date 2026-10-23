@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 import json
 import math
+import time
 from typing import Protocol
 
 
@@ -27,6 +28,11 @@ class Plan:
     nodes: list[Node]
 
     def ordered(self) -> list[Node]:
+        for n in self.nodes:
+            if not isinstance(n.id, str) or not isinstance(n.description, str) or not n.description.strip():
+                raise ValueError("Node IDs and descriptions must be nonempty strings")
+            if any(not isinstance(d, str) for d in (*n.dependencies, *n.constraints)):
+                raise ValueError("Dependencies and constraints must be strings")
         index = {n.id: n for n in self.nodes}
         if not index or len(index) != len(self.nodes) or any(not n.id for n in self.nodes):
             raise ValueError("Plan needs nonempty, unique node IDs")
@@ -87,9 +93,11 @@ class Config:
     verification: bool = True
     structured_memory: bool = True
     dag: bool = True
+    max_nodes: int = 32
+    state_chars: int = 12000
 
     def __post_init__(self):
-        if min(self.max_steps, self.capsule_tokens, self.verification_log_chars) < 1:
+        if min(self.max_steps, self.capsule_tokens, self.verification_log_chars, self.max_nodes, self.state_chars) < 1:
             raise ValueError("Budgets must be positive")
 
 
@@ -109,6 +117,7 @@ class Engine:
     def run(self, query: str) -> dict:
         if not query.strip():
             raise ValueError("Query must not be empty")
+        started = time.monotonic()
         cfg = self.config
         if cfg.dag:
             raw = self.backend.call("planner", {"query": query}, 0.7)
@@ -117,6 +126,8 @@ class Engine:
                      for n in raw["nodes"]]
         else:
             nodes = [Node("task", query, constraints=("Answer the user's question with evidence",))]
+        if len(nodes) > cfg.max_nodes:
+            raise ValueError("Planner exceeds max_nodes budget")
         plan = Plan(nodes)
         ordered = plan.ordered()
         memory, partials, events, histories = {}, {}, [], {}
@@ -127,6 +138,7 @@ class Engine:
                 continue
             parents = {d: asdict(memory[d]) for d in node.dependencies}
             state, history = State(), []
+            observed_sources = {e["source"] for c in parents.values() for e in c["evidence"]}
             base = {"query": query, "node": asdict(node), "parents": parents}
             accepted = False
             for step in range(cfg.max_steps):
@@ -135,39 +147,63 @@ class Engine:
                 if not cfg.structured_memory:
                     context["history"] = history
                     context["parent_histories"] = {d: histories[d] for d in node.dependencies}
-                action = self.backend.call("executor", context, 0.7)
-                name = action.get("action")
-                if name == "finish":
-                    candidate = self._candidate(node, action)
-                    report = self.backend.call("verifier", {
-                        **base, "state": asdict(state), "candidate": asdict(candidate),
-                        "execution_log": json.dumps(history, ensure_ascii=False)[-cfg.verification_log_chars:]
-                    }, 0.7) if cfg.verification else {
-                        "verdict": "Pass", "reason": "Verification disabled: ablation only"}
-                    verdict = Verdict(report["verdict"])
-                    candidate.status, candidate.rationale = verdict, str(report["reason"])
-                    events.append({"node": node.id, "step": step, "event": "verification",
-                                   "verdict": verdict.value, "reason": candidate.rationale})
-                    if verdict == Verdict.PASS:
-                        self._check_budget(candidate)
-                        memory[node.id] = candidate
-                        accepted = True
-                        break
-                    target = state.negative_constraints if verdict == Verdict.REJECTED else state.feedback
-                    target.append(candidate.rationale)
-                elif name in ("search", "visit", "python_repl"):
-                    try:
-                        observation = self.tools.execute(name, action.get("arguments", {}))
-                    except (ValueError, OSError, TimeoutError) as exc:
-                        observation = f"Tool error: {type(exc).__name__}: {exc}"
-                    history.append({"action": action, "observation": observation})
-                    delta = self.backend.call("extractor", {
-                        **base, "state": asdict(state), "action": action, "observation": observation
-                    }, 0.0)
-                    state.update(delta)
-                    events.append({"node": node.id, "step": step, "event": "tool", "tool": name})
-                else:
-                    raise ValueError(f"Invalid action: {name}")
+                try:
+                    action = self.backend.call("executor", context, 0.7)
+                    name = action.get("action")
+                    if name == "finish":
+                        candidate = self._candidate(node, action)
+                        report = self.backend.call("verifier", {
+                            **base, "state": asdict(state), "candidate": asdict(candidate),
+                            "execution_log": json.dumps(history, ensure_ascii=False)[-cfg.verification_log_chars:]
+                        }, 0.7) if cfg.verification else {
+                            "verdict": "Pass", "reason": "Verification disabled: ablation only"}
+                        verdict = Verdict(report["verdict"])
+                        candidate.status, candidate.rationale = verdict, str(report["reason"])
+                        events.append({"node": node.id, "step": step, "event": "verification",
+                                       "verdict": verdict.value, "reason": candidate.rationale})
+                        if verdict == Verdict.PASS and cfg.verification:
+                            if not candidate.evidence or any(e["source"] not in observed_sources for e in candidate.evidence):
+                                verdict = Verdict.REJECTED
+                                candidate.status = verdict
+                                candidate.rationale = "Evidence must cite observed tool or verified parent sources"
+                                events[-1].update(verdict=verdict.value, reason=candidate.rationale)
+                        if verdict == Verdict.PASS:
+                            self._check_budget(candidate)
+                            memory[node.id] = candidate
+                            accepted = True
+                            break
+                        target = state.negative_constraints if verdict == Verdict.REJECTED else state.feedback
+                        target.append(candidate.rationale)
+                    elif name in ("search", "visit", "python_repl"):
+                        try:
+                            observation = self.tools.execute(name, action.get("arguments", {}))
+                        except (ValueError, OSError, TimeoutError) as exc:
+                            state.feedback.append(f"Tool error: {type(exc).__name__}: {exc}")
+                            events.append({"node": node.id, "step": step, "event": "tool_error", "tool": name,
+                                           "reason": state.feedback[-1]})
+                            continue
+                        observed = json.loads(observation)
+                        observed_sources.update(r["source"] for r in observed["results"])
+                        history.append({"action": action, "observation": observation})
+                        delta = self.backend.call("extractor", {
+                            **base, "state": asdict(state), "action": action, "observation": observation
+                        }, 0.0)
+                        next_state = State(**json.loads(json.dumps(asdict(state))))
+                        next_state.update(delta)
+                        if any(f["source"] not in observed_sources for f in next_state.new_findings):
+                            raise ValueError("Extractor cited an unobserved source")
+                        if len(json.dumps(asdict(next_state), ensure_ascii=False)) > cfg.state_chars:
+                            raise ValueError("Compact state exceeds state_chars budget; reduce new findings")
+                        state = next_state
+                        events.append({"node": node.id, "step": step, "event": "tool", "tool": name})
+                    else:
+                        raise ValueError(f"Invalid action: {name}")
+                except (ValueError, KeyError, TypeError, SyntaxError, ZeroDivisionError) as exc:
+                    reason = f"Invalid local output: {type(exc).__name__}: {exc}"
+                    state.feedback.append(reason[:500])
+                    # Bound accumulated diagnostic context independently of tool findings.
+                    state.feedback = state.feedback[-8:]
+                    events.append({"node": node.id, "step": step, "event": "schema_error", "reason": reason[:500]})
             histories[node.id] = history
             if not accepted:
                 raw = self.backend.call("forced_extractor", {**base, "state": asdict(state)}, 0.0)
@@ -181,7 +217,9 @@ class Engine:
             "query": query, "verified_memory": {k: asdict(v) for k, v in memory.items()},
             "unresolved": [n.id for n in ordered if n.id not in memory]
         }, 0.0)
-        return {"query": query, "answer": final["answer"], "config": asdict(cfg),
+        if not isinstance(final.get("answer"), str) or not final["answer"].strip():
+            raise ValueError("Synthesizer requires a nonempty answer string")
+        return {"query": query, "answer": final["answer"], "seconds": time.monotonic() - started, "config": asdict(cfg),
                 "plan": [asdict(n) for n in ordered],
                 "memory": {k: asdict(v) for k, v in memory.items()},
                 "partials": {k: asdict(v) for k, v in partials.items()}, "events": events}

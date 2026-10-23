@@ -9,6 +9,9 @@ description = "Independent reproduction of State-Constrained Plan Execution"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+free-web = ["ddgs==9.16.0", "trafilatura==2.3.1"]
+
 [project.scripts]
 scope = "scope.cli:main"
 

@@ -1,0 +1,6 @@
+{
+  "models": [
+    {"name": "model-A", "base_url": "https://openrouter.ai/api/v1", "model": "REPLACE_WITH_ACTUAL_MODEL_ID", "api_key_env": "OPENROUTER_API_KEY"},
+    {"name": "model-B", "base_url": "https://openrouter.ai/api/v1", "model": "REPLACE_WITH_ANOTHER_MODEL_ID", "api_key_env": "OPENROUTER_API_KEY"}
+  ]
+}

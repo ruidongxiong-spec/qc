@@ -2,10 +2,9 @@ import ast
 import ipaddress
 import json
 import operator
-import os
+import math
 import socket
 import urllib.parse
-import urllib.request
 
 
 def arithmetic(expression):
@@ -23,7 +22,7 @@ def arithmetic(expression):
             value = ops[type(n.op)](visit(n.left), visit(n.right))
         else:
             raise ValueError("Only numeric arithmetic is supported")
-        if abs(value) > 1e100:
+        if not math.isfinite(value) or abs(value) > 1e100:
             raise ValueError("Numeric limit exceeded")
         return value
     return str(visit(ast.parse(expression, mode="eval").body))
@@ -39,32 +38,22 @@ def public_url(url):
 
 
 class WebTools:
+    def __init__(self, search=None, reader=None, cache_dir=None):
+        from .retrieval import Retrieval
+        self.retrieval = Retrieval(search, reader, cache_dir)
+
     def execute(self, name, arguments):
         if name == "python_repl":
-            return arithmetic(arguments["expression"])
-        if name == "search":
-            key = os.environ.get("SERPER_API_KEY")
-            if not key:
-                raise ValueError("SERPER_API_KEY is missing")
-            req = urllib.request.Request("https://google.serper.dev/search",
-                json.dumps({"q": arguments["query"], "num": 5}).encode(),
-                {"X-API-KEY": key, "Content-Type": "application/json"})
-        elif name == "visit":
-            url = public_url(arguments["url"])
-            headers = {}
-            if os.environ.get("JINA_API_KEY"):
-                headers["Authorization"] = "Bearer " + os.environ["JINA_API_KEY"]
-            req = urllib.request.Request("https://r.jina.ai/" + url, headers=headers)
-        else:
-            raise ValueError(f"Unknown tool {name}")
-        with urllib.request.urlopen(req, timeout=45) as response:
-            return response.read(64000).decode("utf-8", errors="replace")
+            expression = arguments["expression"]
+            return json.dumps({"results": [{"source": "python_repl:" + expression,
+                                           "text": arithmetic(expression)}]})
+        return self.retrieval.execute(name, arguments)
 
 
 class DemoTools:
     def execute(self, name, arguments):
         if name == "search":
-            return "Ada Lovelace was born in 1815 (offline fixture)."
+            return json.dumps({"results": [{"source": "fixture", "text": "Ada Lovelace was born in 1815 (offline fixture)."}]})
         if name == "python_repl":
-            return arithmetic(arguments["expression"])
+            return json.dumps({"results": [{"source": "fixture", "text": arithmetic(arguments["expression"])}]})
         raise ValueError(name)

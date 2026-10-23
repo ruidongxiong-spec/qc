@@ -1,6 +1,7 @@
 """JSON-only role prompts and a standard-library OpenAI-compatible client."""
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 
@@ -19,7 +20,7 @@ class OpenAIBackend:
     def __init__(self, base_url=None, model=None, key=None):
         self.base_url = (base_url or os.environ.get("SCOPE_BASE_URL", "")).rstrip("/")
         self.model = model or os.environ.get("SCOPE_MODEL", "")
-        self.key = key or os.environ.get("SCOPE_API_KEY", "")
+        self.key = os.environ.get("SCOPE_API_KEY", "") if key is None else key
         if not self.base_url or not self.model:
             raise ValueError("Set SCOPE_BASE_URL and SCOPE_MODEL; SCOPE_API_KEY if endpoint requires it")
         if not self.base_url.startswith(("https://", "http://localhost:", "http://127.0.0.1:")):
@@ -36,12 +37,15 @@ class OpenAIBackend:
             headers["Authorization"] = "Bearer " + self.key
         req = urllib.request.Request(self.base_url + "/chat/completions",
                                      json.dumps(body).encode(), headers)
+        started = time.monotonic()
         try:
             with urllib.request.urlopen(req, timeout=120) as response:
                 data = json.load(response)
         except urllib.error.HTTPError as exc:
             raise RuntimeError(f"Model endpoint returned HTTP {exc.code}") from None
-        self.usage.append({"role": role, **data.get("usage", {})})
+        except urllib.error.URLError:
+            raise RuntimeError("Model endpoint network failure") from None
+        self.usage.append({"role": role, "model": self.model, "seconds": time.monotonic() - started, **data.get("usage", {})})
         content = data["choices"][0]["message"]["content"].strip()
         if content.startswith("```json") and content.endswith("```"):
             content = content[7:-3].strip()
@@ -68,7 +72,7 @@ class DemoBackend:
             return {"action": "finish", "result": "1815" if node == "birth" else "28",
                     "evidence": payload["state"]["new_findings"], "confidence": 1.0}
         if role == "extractor":
-            return {"new_findings": [{"fact": payload["observation"], "source": "fixture"}],
+            return {"new_findings": [{"fact": json.loads(payload["observation"])["results"][0]["text"], "source": "fixture"}],
                     "missing_info": [], "new_leads": []}
         if role == "verifier":
             expected = "1815" if payload["node"]["id"] == "birth" else "28"
