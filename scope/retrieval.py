@@ -1,6 +1,7 @@
 """Interchangeable search/read providers; no implicit provider switching in experiments."""
 from datetime import datetime, timezone
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -35,6 +36,8 @@ def fetch(url, data=None, headers=None):
         raise ToolError(f"HTTP {exc.code} from {urllib.parse.urlsplit(url).hostname}") from None
     except urllib.error.URLError:
         raise ToolError(f"Network failure for {urllib.parse.urlsplit(url).hostname}") from None
+    except http.client.HTTPException as exc:
+        raise ToolError(f"HTTP transport failure ({type(exc).__name__}) for {urllib.parse.urlsplit(url).hostname}") from None
 
 
 class Retrieval:
@@ -112,7 +115,18 @@ class Retrieval:
                  "title": r["title"], "text": r["snippet"]} for r in json.loads(text)["query"]["search"]]
 
     def _visit(self, url):
+        if not isinstance(url, str) or any(ord(c) < 32 or ord(c) == 127 for c in url):
+            raise ToolError("Visit URL must be a string without control characters")
         public_url(url)
+        parts = urllib.parse.urlsplit(url)
+        # Models may emit readable spaces/Unicode; preserve existing escapes and
+        # query separators, while sending a valid ASCII request target.
+        url = urllib.parse.urlunsplit((
+            parts.scheme, parts.netloc,
+            urllib.parse.quote(parts.path, safe="/%:@!$&'()*+,;=-._~"),
+            urllib.parse.quote(parts.query, safe="/%?:@!$&'()*+,;=-._~"),
+            "",
+        ))
         if self.reader == "jina":
             headers = {"Authorization": "Bearer " + os.environ["JINA_API_KEY"]} if os.environ.get("JINA_API_KEY") else {}
             text, _ = fetch("https://r.jina.ai/" + url, headers=headers)

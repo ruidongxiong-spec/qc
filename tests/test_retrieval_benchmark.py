@@ -14,6 +14,29 @@ from scope.tools import DemoTools, public_url
 
 
 class RetrievalTests(unittest.TestCase):
+    def test_jina_encodes_model_url_without_double_encoding(self):
+        adapter = Retrieval(reader="jina")
+        url = "https://example.com/encyclopedia articles/café%20page?q=a b&x=1#section"
+        expected = "https://example.com/encyclopedia%20articles/caf%C3%A9%20page?q=a%20b&x=1"
+        with patch("scope.retrieval.public_url"), patch("scope.retrieval.fetch", return_value=("Evidence", "text/plain")) as fetch:
+            result = adapter._visit(url)
+        self.assertEqual(result[0]["source"], expected)
+        self.assertEqual(fetch.call_args.args[0], "https://r.jina.ai/" + expected)
+
+    def test_visit_rejects_control_characters_before_network(self):
+        with patch("scope.retrieval.public_url") as validate:
+            with self.assertRaises(ToolError):
+                Retrieval(reader="jina")._visit("https://example.com/a\nheader")
+        validate.assert_not_called()
+
+    def test_http_protocol_failure_becomes_recoverable_tool_error(self):
+        import http.client
+        from scope.retrieval import fetch
+        with patch("scope.retrieval.public_url"), patch("scope.retrieval.urllib.request.build_opener") as opener:
+            opener.return_value.open.side_effect = http.client.InvalidURL("bad request target")
+            with self.assertRaises(ToolError):
+                fetch("https://example.com")
+
     def test_cache_prevents_repeated_provider_calls(self):
         with tempfile.TemporaryDirectory() as tmp:
             adapter = Retrieval(search="wikipedia", cache_dir=tmp)
