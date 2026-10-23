@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "source_url": "https://huggingface.co/datasets/hotpotqa/hotpot_qa/tree/1908d6afbbead072334abe2965f91bd2709910ab/fullwiki",
+  "source_sha256": "46f995564386db0951250793a4ff382f4a587acf7e5fb4a9e55d191f795936ef",
+  "source_bytes": 331786656,
+  "source_format": "huggingface_parquet",
+  "source_manifest": {
+    "repository": "hotpotqa/hotpot_qa",
+    "revision": "1908d6afbbead072334abe2965f91bd2709910ab",
+    "configuration": "fullwiki",
+    "split": "train",
+    "files": [
+      {
+        "path": "fullwiki/train-00000-of-00002.parquet",
+        "bytes": 165624177,
+        "sha256": "76d3bb3048a7cc73c1958107c0c5872a00d7e7d00c105b81e92f6769e7822e68"
+      },
+      {
+        "path": "fullwiki/train-00001-of-00002.parquet",
+        "bytes": 166162479,
+        "sha256": "713661628434fbb19fff7392e2e321e4ed107e3c7c7784d0690946e5f722763f"
+      }
+    ],
+    "checksum_source": "Hugging Face official repository tree API, LFS SHA-256 OIDs",
+    "license": "CC-BY-SA-4.0"
+  },
+  "source_hash_scope": "SHA256 of canonical source manifest JSON; each original file separately verified",
+  "source_split": "train",
+  "hf_configuration": "fullwiki",
+  "train_shared_between_configurations": true,
+  "source_counts": {
+    "easy": 17972,
+    "medium": 56814,
+    "hard": 15661
+  },
+  "seed": "scope-hotpotqa-train-v1-seed42",
+  "selection": "ascending SHA256(seed + ':' + original ID), per original level",
+  "quotas": {
+    "easy": 500,
+    "medium": 300,
+    "hard": 200
+  },
+  "reserve_per_level": 200,
+  "candidates_sha256": "715932413a2e81102ed53f2b679acd3acc4a331597da9da722e7f1e7444a3862",
+  "initial_sha256": "13c4784ee92d61e84d7745fd9655150245853d718252c03e5b2912ca912d33a8",
+  "status": "awaiting_individual_semantic_review",
+  "paper_exact_subset": false
+}

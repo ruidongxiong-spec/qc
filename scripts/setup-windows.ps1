@@ -1,4 +1,4 @@
-param([string]$Destination = 'D:\qc', [switch]$FreeWeb)
+param([string]$Destination = 'D:\qc', [switch]$FreeWeb, [switch]$DatasetPrep, [switch]$Update)
 $ErrorActionPreference = 'Stop'
 function Assert-Exit([string]$Step) {
     if ($LASTEXITCODE -ne 0) { throw "$Step failed with exit code $LASTEXITCODE" }
@@ -9,9 +9,25 @@ if (-not (Test-Path $Destination)) {
 } elseif (-not (Test-Path (Join-Path $Destination 'pyproject.toml'))) {
     throw 'Destination exists but does not contain the project. Choose an empty path.'
 }
-# Preserve existing files. This script never resets or automatically pulls a checkout.
+# Updates are explicit, preserve local edits and allow only a fast-forward on main.
 Push-Location $Destination
 try {
+    if ($Update) {
+        if (-not (Test-Path '.git')) { throw 'Archive copy has no Git metadata; download and extract a fresh archive to update it.' }
+        $Remote = git remote get-url origin
+        Assert-Exit 'read remote'
+        if ($Remote -notmatch '[:/]ruidongxiong-spec/qc(\.git)?$') { throw 'Origin is not ruidongxiong-spec/qc; refusing to update this checkout.' }
+        $Changes = git status --porcelain
+        Assert-Exit 'check working tree'
+        if ($Changes) { throw 'Local changes exist. Commit or back them up before -Update; nothing was overwritten.' }
+        $Branch = git branch --show-current
+        Assert-Exit 'read branch'
+        if ($Branch -ne 'main') { throw 'Switch to main before using -Update.' }
+        git fetch origin main
+        Assert-Exit 'git fetch'
+        git merge --ff-only origin/main
+        Assert-Exit 'fast-forward update'
+    }
     py -3 -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required"'
     Assert-Exit 'Python version check'
     if (-not (Test-Path '.venv\Scripts\python.exe')) {
@@ -19,7 +35,10 @@ try {
         Assert-Exit 'venv'
     }
     $Python = Join-Path $Destination '.venv\Scripts\python.exe'
-    $Package = if ($FreeWeb) { '.[free-web]' } else { '.' }
+    $Extras = @()
+    if ($FreeWeb) { $Extras += 'free-web' }
+    if ($DatasetPrep) { $Extras += 'dataset-prep' }
+    $Package = if ($Extras.Count) { '.[' + ($Extras -join ',') + ']' } else { '.' }
     if ($FreeWeb) {
         & $Python -m pip install -c requirements-free-web.lock -e $Package
     } else {

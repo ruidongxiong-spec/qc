@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "hotpotqa/hotpot_qa",
+    "revision": "1908d6afbbead072334abe2965f91bd2709910ab",
+    "configuration": "fullwiki",
+    "license": "CC-BY-SA-4.0",
+    "splits": {
+      "train": [
+        {
+          "path": "fullwiki/train-00000-of-00002.parquet",
+          "bytes": 165624177,
+          "sha256": "76d3bb3048a7cc73c1958107c0c5872a00d7e7d00c105b81e92f6769e7822e68"
+        },
+        {
+          "path": "fullwiki/train-00001-of-00002.parquet",
+          "bytes": 166162479,
+          "sha256": "713661628434fbb19fff7392e2e321e4ed107e3c7c7784d0690946e5f722763f"
+        }
+      ],
+      "validation": [
+        {
+          "path": "fullwiki/validation-00000-of-00001.parquet",
+          "bytes": 28041820,
+          "sha256": "78933c0a31a5f7b420d4effdf4cd4eed573b28c6a3da6179dcf7a02b39e51d03"
+        }
+      ],
+      "test": [
+        {
+          "path": "fullwiki/test-00000-of-00001.parquet",
+          "bytes": 27558644,
+          "sha256": "f6b522fed6748b33c0eaad972d53bc89c10b8afefb329629f779bfb967442cd8"
+        }
+      ]
+    }
+  },
+  "counts": {
+    "train": {
+      "rows": 90447,
+      "levels": {
+        "medium": 56814,
+        "hard": 15661,
+        "easy": 17972
+      },
+      "missing": {}
+    },
+    "validation": {
+      "rows": 7405,
+      "levels": {
+        "hard": 7405
+      },
+      "missing": {}
+    },
+    "test": {
+      "rows": 7405,
+      "levels": {
+        "unspecified": 7405
+      },
+      "missing": {
+        "answer": 7405,
+        "level": 7405,
+        "type": 7405
+      }
+    }
+  },
+  "encoding": "utf-8-sig",
+  "newline": "LF",
+  "full_view": "official/hotpotqa_fullwiki/<split>/part-*.csv; every original column including context",
+  "qa_view": "root hotpotqa_fullwiki_<split>.csv; all rows, context omitted",
+  "seed": "scope-hotpotqa-train-v1-seed42",
+  "quotas": {
+    "easy": 500,
+    "medium": 300,
+    "hard": 200
+  },
+  "semantic_review_status": "paused_by_user; sample is not a cleaned benchmark",
+  "paper_exact_subset": false,
+  "outputs": [
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0001.csv",
+      "rows": 3326,
+      "bytes": 20966248,
+      "sha256": "55eaf5c0e1948360c1c2efcffdcafbde927db1cbe11ccc9ae7adcfe05a56a21c"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0002.csv",
+      "rows": 3363,
+      "bytes": 20968251,
+      "sha256": "2f9c7a703a42e46d6440ae222f53fb21a4fe33701737bbe0189f13e6d4d534dc"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0003.csv",
+      "rows": 3331,
+      "bytes": 20971367,
+      "sha256": "390ae2e53de98645d604c804b04c59c4e6d371995ecaeb2b0954954cb700ca7b"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0004.csv",
+      "rows": 3341,
+      "bytes": 20966217,
+      "sha256": "eb7a93b7c85bf79975793f05888b5ab144773803b633664f88ae467febecb535"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0005.csv",
+      "rows": 3344,
+      "bytes": 20971051,
+      "sha256": "a676b7cb76106de8e46e160ee9ab993b618f4e04d8220ed797a34e064862ca72"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0006.csv",
+      "rows": 3339,
+      "bytes": 20970740,
+      "sha256": "c29eb0aee2a6bd9da20718ee3ee5109a00d1ef2efacd3b306d6370e910eb6980"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0007.csv",
+      "rows": 3347,
+      "bytes": 20967774,
+      "sha256": "0d4aecdcbabd279c94ca2157e8d52bdca62b08091de557cd75cb24f19d3f2e67"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0008.csv",
+      "rows": 3333,
+      "bytes": 20966526,
+      "sha256": "913c2d60864fa857149c06ba7a79522c5f11f1e3feea9b86e70d3d6b657d3578"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0009.csv",
+      "rows": 3326,
+      "bytes": 20970795,
+      "sha256": "23e97cf85da2f51fa7a831bd220fd7f8c41d67c947c5136d18e4099dfd6ee63f"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0010.csv",
+      "rows": 3314,
+      "bytes": 20969648,
+      "sha256": "1a83b38958a8a6f8bb230336847ac3b62f078c62ac2a91744f65da9895bed16e"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0011.csv",
+      "rows": 3344,
+      "bytes": 20957308,
+      "sha256": "55d31e24c9408c57c7c685975feb6b60c6697d5829c3ceb3e81896369253dc93"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0012.csv",
+      "rows": 3325,
+      "bytes": 20966366,
+      "sha256": "565764fb35d8baf56551b86aa21c57d5db2954acafbd112109580d47b4fbfd17"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0013.csv",
+      "rows": 3345,
+      "bytes": 20969217,
+      "sha256": "7ea93406df62368410e7590eea723de4672e9b1d734e3e7b3ad55c40fed50d70"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0014.csv",
+      "rows": 3335,
+      "bytes": 20970248,
+      "sha256": "2591c3a5323b8929af80000cbddc86bf78d6775f98182c3dbb28be6df0c54e0d"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0015.csv",
+      "rows": 3331,
+      "bytes": 20967566,
+      "sha256": "5623270a58e8e7f98e562a0a43204c0a382cbb9c795a888fb214f514d5811c83"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0016.csv",
+      "rows": 3342,
+      "bytes": 20966149,
+      "sha256": "2ec8027b977af0407b60cc32b228c32f9079e5826f6034c394f740302f890d5a"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0017.csv",
+      "rows": 3333,
+      "bytes": 20967961,
+      "sha256": "ed81038dcd5e65854a1367c3ad392d8b91fadf2d83f7e815204064e8dc5c0537"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0018.csv",
+      "rows": 3347,
+      "bytes": 20969265,
+      "sha256": "1ed2672a6dafeeeddf1a59d0e0e7e8032fff815e2efaeacf3cd09ce5c6d211e4"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0019.csv",
+      "rows": 3325,
+      "bytes": 20965912,
+      "sha256": "e730f6eab30566edc147c12f9fe5aaa34e550e247447cacc1d4e3325768aac01"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0020.csv",
+      "rows": 3312,
+      "bytes": 20967817,
+      "sha256": "7416039ff9d3f4bfaefc937c6d086f36719dcaebd504a7e84df9a11cf8a94c17"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0021.csv",
+      "rows": 3304,
+      "bytes": 20967390,
+      "sha256": "b41583aec8fb0c83c9a4f01c143a26a4a477c392686618f3c650cb50642f511d"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0022.csv",
+      "rows": 3315,
+      "bytes": 20970898,
+      "sha256": "e75ea5a35f080ae310f0a0e3031c3b643e0f10bcc092e89f41e4b29e0d74a96a"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0023.csv",
+      "rows": 3325,
+      "bytes": 20970453,
+      "sha256": "4256f1f287154e147666c84e11f3ba3cdfb3ff55b8bbfa344bf01e06075f463c"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0024.csv",
+      "rows": 3356,
+      "bytes": 20965745,
+      "sha256": "72e04378599ff70b4b0a1ebc8b50362be7c9a82b207519ce8696d6a478182d30"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0025.csv",
+      "rows": 3327,
+      "bytes": 20970858,
+      "sha256": "4ea5349483707933a8af4796b5dae8f32f048c1c41e8671a66aa2e5015d4e58a"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0026.csv",
+      "rows": 3314,
+      "bytes": 20966821,
+      "sha256": "d51e7bb4cdcc5fb54d6addaea919298d53787d8aea4ad040b81258cf480b2ee8"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0027.csv",
+      "rows": 3312,
+      "bytes": 20970786,
+      "sha256": "27cd2b6d4710d7514815f54abe0b99c616a036579305493d550477962669e037"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/train/part-0028.csv",
+      "rows": 491,
+      "bytes": 3047178,
+      "sha256": "8f2a46733b8826e396b54663a85c3e7620723d44363df7e9fa1cade71bcc3fe2"
+    },
+    {
+      "file": "hotpotqa_fullwiki_train.csv",
+      "rows": 90447,
+      "bytes": 22743621,
+      "sha256": "5c998eb52d2b8bf77675e4d8215580eccde6f60911aa8a1b3638cd42dd457a97"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/validation/part-0001.csv",
+      "rows": 3228,
+      "bytes": 20966917,
+      "sha256": "5a1485fb952851687eccea6b850b656d019dead30dab8eba397b14e614cfbbbe"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/validation/part-0002.csv",
+      "rows": 3220,
+      "bytes": 20970885,
+      "sha256": "f7ea940a0d0f988ea1b92c7ff96bf7bcaaf0c04654cdab9dc9fd843c8369c387"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/validation/part-0003.csv",
+      "rows": 957,
+      "bytes": 6247084,
+      "sha256": "6118ac45ebf52c437e4324ab71ff349835929db8e26a66f5a005933519b781c9"
+    },
+    {
+      "file": "hotpotqa_fullwiki_validation.csv",
+      "rows": 7405,
+      "bytes": 1816573,
+      "sha256": "e97d3ef37a3ce9776d77af98fded075c1d399bcd5b55980c5551f5d343a8c9ee"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/test/part-0001.csv",
+      "rows": 3274,
+      "bytes": 20969171,
+      "sha256": "6cf4b71069c983e548632e5ff12b9004b80280ca730f1ea5cf4f7d1902c9b823"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/test/part-0002.csv",
+      "rows": 3250,
+      "bytes": 20969106,
+      "sha256": "2875f47f4caa5dd2f47afa84965fae89a1f276e00c4e8cb077c6b70b504c9f79"
+    },
+    {
+      "file": "official/hotpotqa_fullwiki/test/part-0003.csv",
+      "rows": 881,
+      "bytes": 5649375,
+      "sha256": "aee70385d4a2dc5308a5de2318d5da83893fe44f4a4daa540ad232db8ae8155f"
+    },
+    {
+      "file": "hotpotqa_fullwiki_test.csv",
+      "rows": 7405,
+      "bytes": 1060583,
+      "sha256": "13d927ab52137d28e72204d51b233e77ef7751de99ed0dbf5624300bccbe41a6"
+    },
+    {
+      "file": "hotpotqa_train_sample1000.csv",
+      "rows": 1000,
+      "bytes": 273439,
+      "sha256": "13c4784ee92d61e84d7745fd9655150245853d718252c03e5b2912ca912d33a8"
+    },
+    {
+      "file": "scope_selected2125.csv",
+      "rows": 2125,
+      "bytes": 576468,
+      "sha256": "75b2d1912ab838bd3a28e76cdd44ab1b56fe0910e604c433c4350f1efed915d0"
+    }
+  ]
+}

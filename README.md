@@ -84,3 +84,9 @@ python -m scope.report --input runs/matrix-demo/summary.json --output runs/matri
 真实 CSV 已放在 [`datasets/`](datasets/README.md)：HotpotQA 开发集 7,405 题、MuSiQue 开发集 QA 镜像导出 2,417 题、Bamboogle 125 题，以及固定的 1,000/1,000/125 评测抽样和合并版 2,125 题。评测 CLI 和模型矩阵现在直接接受 CSV，无需转成 JSONL。
 
 这些是带 GitHub 来源、固定 commit、校验和、许可说明的公开数据导出，**不是论文作者原始抽样清单**。HotpotQA 这份 dev 全部为 hard；MuSiQue 为镜像规范化 QA 视图，不能冒充官方完整 raw 格式。数据来源、字段与精确限制见 datasets/README.md。
+
+## 最新数据与项目进度
+
+官方 HotpotQA fullwiki 三个划分现已提供 CSV：含上下文的全部原字段位于 `datasets/official/hotpotqa_fullwiki/` 的 34 个分片，每片不超过 20 MiB；轻量 QA 位于 `datasets/hotpotqa_fullwiki_*.csv`。新固定抽样为 `datasets/hotpotqa_train_sample1000.csv`（easy 500 / medium 300 / hard 200），新批测输入为 `datasets/scope_selected2125.csv`。旧 dev hard 基线、MuSiQue 2/3-hop 抽样和 Bamboogle 均保留。用户已暂停清理，不将审阅草稿视为已完成清理。
+
+见 [背景、实现进度及后续任务](docs/project-status.md)、[数据口径与重建](docs/hotpotqa-sampling.md)。已有 Windows Git 副本可用 `scripts/setup-windows.ps1 -Update -FreeWeb` 安全同步 main；云环境不能直接写用户电脑的 D 盘。

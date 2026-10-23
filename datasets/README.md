@@ -16,6 +16,8 @@
 
 各文件之间有重叠。请按一次实验选一个文件，不要把目录所有 CSV 直接拼接。合并版用于工程联调，正式论文应分别报告数据集、hop、难度结果。
 
+最新已补齐官方 fullwiki **train 90,447 / validation 7,405 / test 7,405** 的 QA CSV，以及 `official/hotpotqa_fullwiki/` 下保留 context 的完整原字段分片。新抽样为 `hotpotqa_train_sample1000.csv`（**easy 500 / medium 300 / hard 200**），合并版为 `scope_selected2125.csv`。**用户已暂停审阅，当前抽样未应用排除建议**；Bamboogle 保持不变。见 [新数据口径与重建方式](../docs/hotpotqa-sampling.md)、[项目进度和后续任务](../docs/project-status.md)。新散列见 `hotpotqa_fullwiki_manifest.json`，上表旧基线仍保留。
+
 ## GitHub 来源及版本
 
 下载时固定 Git commit，原文件大小、SHA-256、编码、路径和原始作者仓库见 [sources.json](sources.json)。导出 CSV 的行数、SHA-256 和组别分布见 [manifest.json](manifest.json)。

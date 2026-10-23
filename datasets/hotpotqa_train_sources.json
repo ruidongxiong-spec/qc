@@ -1,0 +1,20 @@
+{
+  "repository": "hotpotqa/hotpot_qa",
+  "revision": "1908d6afbbead072334abe2965f91bd2709910ab",
+  "configuration": "fullwiki",
+  "split": "train",
+  "files": [
+    {
+      "path": "fullwiki/train-00000-of-00002.parquet",
+      "bytes": 165624177,
+      "sha256": "76d3bb3048a7cc73c1958107c0c5872a00d7e7d00c105b81e92f6769e7822e68"
+    },
+    {
+      "path": "fullwiki/train-00001-of-00002.parquet",
+      "bytes": 166162479,
+      "sha256": "713661628434fbb19fff7392e2e321e4ed107e3c7c7784d0690946e5f722763f"
+    }
+  ],
+  "checksum_source": "Hugging Face official repository tree API, LFS SHA-256 OIDs",
+  "license": "CC-BY-SA-4.0"
+}

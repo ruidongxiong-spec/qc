@@ -1,0 +1,34 @@
+{
+  "repository": "hotpotqa/hotpot_qa",
+  "revision": "1908d6afbbead072334abe2965f91bd2709910ab",
+  "configuration": "fullwiki",
+  "license": "CC-BY-SA-4.0",
+  "splits": {
+    "train": [
+      {
+        "path": "fullwiki/train-00000-of-00002.parquet",
+        "bytes": 165624177,
+        "sha256": "76d3bb3048a7cc73c1958107c0c5872a00d7e7d00c105b81e92f6769e7822e68"
+      },
+      {
+        "path": "fullwiki/train-00001-of-00002.parquet",
+        "bytes": 166162479,
+        "sha256": "713661628434fbb19fff7392e2e321e4ed107e3c7c7784d0690946e5f722763f"
+      }
+    ],
+    "validation": [
+      {
+        "path": "fullwiki/validation-00000-of-00001.parquet",
+        "bytes": 28041820,
+        "sha256": "78933c0a31a5f7b420d4effdf4cd4eed573b28c6a3da6179dcf7a02b39e51d03"
+      }
+    ],
+    "test": [
+      {
+        "path": "fullwiki/test-00000-of-00001.parquet",
+        "bytes": 27558644,
+        "sha256": "f6b522fed6748b33c0eaad972d53bc89c10b8afefb329629f779bfb967442cd8"
+      }
+    ]
+  }
+}
