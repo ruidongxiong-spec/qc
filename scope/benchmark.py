@@ -52,7 +52,7 @@ def summarize(records):
 
 
 def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader="direct", resume=False, demo=False):
-    config = config or Config()
+    config = config or Config(tokenizer_path=os.environ.get('SCOPE_TOKENIZER_PATH') or None)
     if runs < 1 or not rows or not models:
         raise ValueError("Nonempty models/data and positive runs are required")
     names = [m["name"] for m in models]
@@ -66,7 +66,15 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
             raise ValueError("Every row needs a question")
         score("", row["answer"])
     # URLs are not recorded, to avoid exposing credential-bearing query strings.
-    identity = fingerprint({"version": 1, "models": models, "rows": rows, "runs": runs,
+    model_settings = {key: os.environ.get(key, default) for key, default in {
+        'SCOPE_MODEL_API': 'openai', 'SCOPE_RESPONSE_FORMAT': 'json_object',
+        'SCOPE_OLLAMA_CONTEXT': '8192', 'SCOPE_MAX_OUTPUT_TOKENS': '768'}.items()}
+    if config.tokenizer_path:
+        model_settings['capsule_tokenizer_sha256'] = hashlib.sha256(Path(config.tokenizer_path).read_bytes()).hexdigest()
+    if os.environ.get('SCOPE_TOKENIZER_PATH'):
+        model_settings['context_tokenizer_sha256'] = hashlib.sha256(Path(os.environ['SCOPE_TOKENIZER_PATH']).read_bytes()).hexdigest()
+    identity = fingerprint({"version": 2, "models": models, "rows": rows, "runs": runs,
+                            "model_settings": model_settings,
                             "config": asdict(config), "search": search, "reader": reader, "demo": demo,
                             "ddgs_backend": os.environ.get("SCOPE_DDGS_BACKEND", "duckduckgo") if search == "ddgs" else None})
     output = Path(output)
@@ -85,7 +93,7 @@ def run_matrix(models, rows, output, runs=3, config=None, search="ddgs", reader=
             raise ValueError("Output directory must be empty for a new experiment")
         manifest.write_text(json.dumps({"fingerprint": identity, "demo": demo, "runs": runs,
                                        "dataset_hash": fingerprint(rows), "models": names,
-                                       "config": asdict(config), "search": search, "reader": reader,
+                                       "config": asdict(config), "model_settings": model_settings, "search": search, "reader": reader,
                                        "ddgs_backend": os.environ.get("SCOPE_DDGS_BACKEND", "duckduckgo") if search == "ddgs" else None}, indent=2), encoding="utf-8")
     done = {(r["model_name"], r["run"], r["id"]) for r in records}
     with log.open("a", encoding="utf-8") as handle:

@@ -8,6 +8,7 @@ import time
 from typing import Protocol
 from .progress import log, redact
 from .errors import ModelOutputError
+from .context import observation_chunks
 
 
 class Verdict(str, Enum):
@@ -100,12 +101,16 @@ class Config:
     max_nodes: int = 32
     state_chars: int = 12000
     output_retries: int = 1
+    tokenizer_path: str | None = None
+    observation_chunk_chars: int = 4000
 
     def __post_init__(self):
         if min(self.max_steps, self.capsule_tokens, self.verification_log_chars, self.max_nodes, self.state_chars) < 1:
             raise ValueError("Budgets must be positive")
         if type(self.output_retries) is not int or not 0 <= self.output_retries <= 3:
             raise ValueError("output_retries must be an integer from 0 to 3")
+        if not 256 <= self.observation_chunk_chars <= 20000:
+            raise ValueError("observation_chunk_chars must be between 256 and 20000")
 
 
 class Backend(Protocol):
@@ -122,6 +127,13 @@ class Engine:
         self.config = config or Config()
         self.last_result = None
         self.phase = "initialization"
+        self.token_counter = None
+        if self.config.tokenizer_path:
+            from .token_budget import TokenCounter
+            self.token_counter = TokenCounter(self.config.tokenizer_path)
+        self.capsule_budget = {"limit": self.config.capsule_tokens,
+                               "unit": "tokens" if self.token_counter else "utf8_bytes_legacy",
+                               "tokenizer_sha256": self.token_counter.sha256 if self.token_counter else None}
 
     def _call(self, role, payload, temperature, validate=None, retries=None):
         """Repair only output-contract errors, with a finite per-call budget."""
@@ -180,7 +192,9 @@ class Engine:
             raise ValueError(f"{name} needs arguments.{key} as a nonempty string")
         if len(args[key]) > (1000 if name == "search" else 8000):
             raise ValueError(f"{name} argument is too long")
-        return raw
+        # Normalize nullable schema slots so duplicate detection/cache identity
+        # depends only on the argument consumed by this tool.
+        return {"action": name, "arguments": {key: args[key]}}
 
     @staticmethod
     def _verdict(raw):
@@ -202,7 +216,8 @@ class Engine:
         self.events = []
         self.last_result = {"query": query, "answer": "", "status": "running", "outcome": None,
                             "plan": [], "memory": {}, "partials": {}, "events": self.events,
-                            "config": asdict(self.config)}
+                            "config": asdict(self.config), "capsule_budget": self.capsule_budget}
+        log(f"capsule budget={self.capsule_budget}")
         self.phase = "input"
         try:
             result = self._run(query)
@@ -238,6 +253,8 @@ class Engine:
                 continue
             parents = {d: asdict(memory[d]) for d in node.dependencies}
             state, history, completed_actions = State(), [], []
+            visited_urls, failed_actions = set(), []
+            repeated_actions = 0
             observed_sources = {e["source"] for c in parents.values() for e in c["evidence"]}
             base = {"query": query, "node": asdict(node), "parents": parents}
             accepted = False
@@ -245,17 +262,28 @@ class Engine:
                 state.feedback = [s[:500] for s in state.feedback[-8:]]
                 state.negative_constraints = [s[:500] for s in state.negative_constraints[-8:]]
                 log(f"node={node.id} step={step + 1}/{cfg.max_steps}")
+                finish_requested = bool(state.new_findings) and (step == cfg.max_steps - 1 or repeated_actions >= 2)
+                allowed_actions = ["finish"] if finish_requested else ["search", "visit", "python_repl", "finish"]
                 context = {**base, "state": asdict(state), "step": step,
                            "steps_remaining": cfg.max_steps - step,
-                           "completed_actions": list(completed_actions), "capsule_byte_budget": cfg.capsule_tokens}
+                           "completed_actions": list(completed_actions), "capsule_budget": self.capsule_budget,
+                           "failed_actions": failed_actions[-4:], "visited_urls": sorted(visited_urls),
+                           "allowed_sources": sorted(observed_sources), "allowed_actions": allowed_actions,
+                           "finish_requested": finish_requested}
                 if not cfg.structured_memory:
                     context["history"] = history
                     context["parent_histories"] = {d: histories[d] for d in node.dependencies}
                 try:
-                    action = self._call("executor", context, 0.7, self._action, retries=0)
+                    def validate_action(raw):
+                        action = self._action(raw)
+                        if action['action'] not in allowed_actions:
+                            raise ValueError("A finish candidate is required now; cite existing findings for verification")
+                        return action
+                    action = self._call("executor", context, 0.7, validate_action, retries=0)
                     name = action.get("action")
                     log(f"node={node.id} action={name}")
                     if name == "finish":
+                        repeated_actions = 0
                         candidate = self._candidate(node, action)
                         report = self._call("verifier", {
                             **base, "state": asdict(state), "candidate": asdict(candidate),
@@ -284,15 +312,18 @@ class Engine:
                         target.append(candidate.rationale)
                     elif name in ("search", "visit", "python_repl"):
                         if any(a.get("action") == name and a.get("arguments", {}) == action.get("arguments", {}) for a in completed_actions):
+                            repeated_actions += 1
                             reason = "This action already succeeded; use existing findings, choose a different query/URL, or finish."
                             state.feedback.append(reason)
                             events.append({"node": node.id, "step": step, "event": "duplicate_action", "tool": name})
                             log(f"node={node.id} duplicate action skipped: {reason}")
                             continue
+                        repeated_actions = 0
                         try:
                             self.phase = f"tool:{name}"
                             observation = self.tools.execute(name, action.get("arguments", {}))
                         except (ValueError, OSError, TimeoutError) as exc:
+                            failed_actions.append({"action": name, "arguments": action.get('arguments', {}), "error": str(exc)[:300]})
                             log(f"node={node.id} tool_error={type(exc).__name__}: {exc}; retry within remaining steps")
                             state.feedback.append(f"Tool error: {type(exc).__name__}: {exc}")
                             events.append({"node": node.id, "step": step, "event": "tool_error", "tool": name,
@@ -305,22 +336,44 @@ class Engine:
                             raise ValueError("Tool results need source and text strings")
                         observed_sources.update(r["source"] for r in observed["results"])
                         history.append({"action": action, "observation": observation})
+                        if name == 'visit':
+                            visited_urls.update([action['arguments']['url'], *(r['source'] for r in observed['results'])])
                         def extract_state(delta):
                             if "new_findings" not in delta:
                                 raise ValueError("Extractor must include new_findings (use [] when no facts were found)")
                             updated = State(**json.loads(json.dumps(asdict(state))))
                             updated.update(delta)
+                            if any(f['source'] not in chunk_sources for f in delta['new_findings']):
+                                raise ValueError("New findings must cite a source in this observation chunk")
                             if any(f["source"] not in observed_sources for f in updated.new_findings):
                                 raise ValueError("Extractor cited an unobserved source; copy exact source strings from allowed_sources")
                             if len(json.dumps(asdict(updated), ensure_ascii=False)) > cfg.state_chars:
                                 raise ValueError("Compact state exceeds state_chars budget; reduce new findings")
+                            updated.new_leads = [url for url in updated.new_leads if url not in visited_urls]
                             return updated
-                        next_state = self._call("extractor", {
-                            **base, "state": asdict(state), "action": action, "observation": observation,
-                            "allowed_sources": sorted(observed_sources)
-                        }, 0.0, extract_state)
-                        state = next_state
-                        completed_actions.append(action)
+                        chunks = observation_chunks(observed, cfg.observation_chunk_chars)
+                        extraction_complete = True
+                        for chunk_index, chunk in enumerate(chunks, 1):
+                            chunk_sources = sorted({r['source'] for r in json.loads(chunk)['results']})
+                            log(f"node={node.id} extraction chunk={chunk_index}/{len(chunks)} observation_chars={len(chunk)}")
+                            try:
+                                previous_count = len(state.new_findings)
+                                state = self._call("extractor", {
+                                    **base, "state": asdict(state), "action": action, "observation": chunk,
+                                    "chunk": {"index": chunk_index, "total": len(chunks)},
+                                    "allowed_sources": chunk_sources
+                                }, 0.0, extract_state)
+                                events.append({"node": node.id, "step": step, "event": "extraction_chunk",
+                                               "index": chunk_index, "total": len(chunks), "status": "ok",
+                                               "added_findings": len(state.new_findings) - previous_count})
+                                log(f"node={node.id} state findings={len(state.new_findings)} added={len(state.new_findings) - previous_count} gaps={len(state.missing_info)} unvisited_leads={len(state.new_leads)}")
+                            except ModelOutputError as exc:
+                                extraction_complete = False
+                                state.feedback.append(f"Chunk {chunk_index} extraction failed: {exc}"[:500])
+                                events.append({"node": node.id, "step": step, "event": "schema_error",
+                                               "chunk": chunk_index, "reason": str(exc)[:500]})
+                        if extraction_complete:
+                            completed_actions.append(action)
                         events.append({"node": node.id, "step": step, "event": "tool", "tool": name})
                     else:
                         raise ValueError(f"Invalid action: {name}")
@@ -341,7 +394,7 @@ class Engine:
                         self._check_budget(partial)
                         return partial
                     partial = self._call("forced_extractor", {**base, "state": asdict(state),
-                                         "capsule_byte_budget": cfg.capsule_tokens}, 0.0, make_partial)
+                                         "capsule_budget": self.capsule_budget, "allowed_sources": sorted(observed_sources)}, 0.0, make_partial)
                     partials[node.id] = partial
                     self.last_result["partials"][node.id] = asdict(partial)
                 except (ValueError, KeyError, TypeError) as exc:
@@ -389,8 +442,10 @@ class Engine:
         return capsule
 
     def _check_budget(self, capsule: Capsule) -> None:
-        # Byte count is a conservative bound for byte-level tokenizers, not an
-        # exact model tokenizer. Include rationale and status in the wire budget.
-        size = len(json.dumps(asdict(capsule), ensure_ascii=False).encode())
+        # Count the complete capsule, including validation metadata. Legacy byte
+        # mode is explicit; token mode requires a supplied, hash-recorded tokenizer.
+        serialized = json.dumps(asdict(capsule), ensure_ascii=False)
+        size = self.token_counter.count(serialized) if self.token_counter else len(serialized.encode())
+        log(f"node={capsule.node_id} capsule_size={size}/{self.config.capsule_tokens} unit={self.capsule_budget['unit']}")
         if size > self.config.capsule_tokens:
-            raise ValueError(f"Capsule uses {size} UTF-8 bytes, exceeds {self.config.capsule_tokens}-byte budget; shorten result/evidence")
+            raise ValueError(f"Capsule uses {size} {self.capsule_budget['unit']}, exceeds {self.config.capsule_tokens} budget; shorten result/evidence")

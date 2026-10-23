@@ -104,7 +104,7 @@ git -c http.proxy=http://127.0.0.1:7890 pull --ff-only origin main
 powershell -ExecutionPolicy Bypass -File .\scripts\run-free-one.ps1 -PullModel
 ```
 
-脚本安装锁定的 free-web 依赖，使用 Clash HTTP 代理 `http://127.0.0.1:7890`，以 DDGS 搜索、匿名 Jina 读取，再通过本地 Ollama 的 `qwen2.5:7b` 运行清理版 HotpotQA 第一条数据一次。模型下载需要数 GB 空间，推理速度及可用模型大小取决于本机内存/显存；不调用付费模型 API。结果保存到唯一的 `runs/free-one-*.jsonl`，完成不代表答案正确，请查看答案、证据和 EM/F1。脚本仅修改当前进程环境变量，不保存密钥。
+脚本安装锁定的 free-web 依赖和 tokenizers，使用 Clash HTTP 代理 `http://127.0.0.1:7890`，以 DDGS 搜索、匿名 Jina 读取，再通过本地 Ollama 的 `qwen2.5:7b` 运行清理版 HotpotQA 第一条数据一次。模型下载需要数 GB 空间，推理速度及可用模型大小取决于本机内存/显存；不调用付费模型 API。结果保存到唯一的 `runs/free-one-*.jsonl`，完成不代表答案正确，请查看答案、证据和 EM/F1。脚本仅修改当前进程环境变量，不保存密钥。默认使用 Ollama 原生 JSON Schema、8192 token 上下文及 512-token Capsule 预算；首次还会从 Hugging Face 下载 Qwen 对应的 tokenizer.json（不是重新下载模型），缓存版本与哈希。已有文件可用 `-TokenizerPath` 指定；更换模型需提供匹配的 `-TokenizerRepo` 或 `-TokenizerPath`。升级后第一次不要加 `-SkipInstall`。详见 [论文机制与本轮优化](docs/paper-aligned-optimizations.md)。
 
 ```powershell
 # 仅测试网页工具，不需要 Ollama

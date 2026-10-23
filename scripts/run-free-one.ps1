@@ -6,6 +6,11 @@ param(
     [ValidateRange(1, 32)][int]$MaxSteps = 8,
     [ValidateRange(0, 3)][int]$OutputRetries = 1,
     [ValidateRange(1, 3600)][int]$ModelTimeout = 120,
+    [ValidateRange(2048, 131072)][int]$ContextTokens = 8192,
+    [ValidateRange(256, 20000)][int]$ObservationChunkChars = 4000,
+    [string]$TokenizerPath = '',
+    [string]$TokenizerRepo = '',
+    [switch]$LegacyByteBudget,
     [switch]$PullModel,
     [switch]$CheckWebOnly,
     [switch]$SkipInstall,
@@ -58,6 +63,11 @@ try {
     $env:SCOPE_DDGS_BACKEND = $SearchBackend
     $env:SCOPE_BASE_URL = 'http://127.0.0.1:11434/v1'
     $env:SCOPE_MODEL = $Model
+    $env:SCOPE_MODEL_API = 'ollama'
+    $env:SCOPE_RESPONSE_FORMAT = 'json_schema'
+    $env:SCOPE_OLLAMA_CONTEXT = [string]$ContextTokens
+    Remove-Item Env:SCOPE_TOKENIZER_PATH -ErrorAction SilentlyContinue
+    Write-Step "Model API=ollama; response=json_schema; context=$ContextTokens; observation_chunk_chars=$ObservationChunkChars"
     Remove-Item Env:SCOPE_API_KEY -ErrorAction SilentlyContinue
     Write-Step ('Credentials: local Ollama=no key; DDGS=no key; Jina key configured=' + [bool]$env:JINA_API_KEY)
     if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -76,7 +86,7 @@ try {
     }
     $Python = (Resolve-Path '.venv/Scripts/python.exe').Path
     if (-not $SkipInstall) {
-        Invoke-Native $Python @('-m', 'pip', 'install', '--disable-pip-version-check', '-q', '-c', 'requirements-free-web.lock', '-e', '.[free-web]')
+        Invoke-Native $Python @('-m', 'pip', 'install', '--disable-pip-version-check', '-q', '-c', 'requirements-free-web.lock', '-e', '.[free-web,token-budget]')
     } else {
         Write-Step 'Dependency installation skipped by request.'
     }
@@ -94,7 +104,24 @@ try {
         Write-Step "[3/5] Downloading Ollama model: $Model"
         Invoke-Native 'ollama' @('pull', $Model)
     }
-    Write-Step "[3/5] Checking local Ollama JSON response (timeout ${ModelTimeout}s)"
+    if ($LegacyByteBudget) {
+        Write-Step 'Capsule budget: legacy 512 UTF-8 bytes (explicit compatibility option).'
+    } else {
+        if (-not $TokenizerPath) {
+            if (-not $TokenizerRepo) {
+                if ($Model -ne 'qwen2.5:7b') {
+                    throw 'Supply -TokenizerPath or -TokenizerRepo matching the chosen model.'
+                }
+                $TokenizerRepo = 'Qwen/Qwen2.5-7B-Instruct'
+            }
+            $TokenizerPath = Join-Path (Get-Location).Path ('runs/tokenizers/' + $TokenizerRepo.Replace('/', '--') + '/tokenizer.json')
+            Write-Step "Preparing tokenizer: $TokenizerRepo (first run downloads tokenizer.json; subsequent runs verify cache hash)"
+            Invoke-Native $Python @('-m', 'scope.token_budget', '--repo', $TokenizerRepo, '--output', $TokenizerPath)
+        }
+        $env:SCOPE_TOKENIZER_PATH = (Resolve-Path -LiteralPath $TokenizerPath).Path
+        Write-Step "Capsule budget: 512 tokenizer tokens; tokenizer=$env:SCOPE_TOKENIZER_PATH"
+    }
+    Write-Step "[3/5] Checking local Ollama schema-constrained response (timeout ${ModelTimeout}s)"
     # A file avoids PowerShell 5 native quoting and pipeline stderr behavior.
     $CheckPath = $Stem + '.check.py'
     @'
@@ -107,7 +134,7 @@ print("Model JSON check:", reply, flush=True)
     try { Invoke-Native $Python @($CheckPath) }
     finally { Remove-Item -LiteralPath $CheckPath -ErrorAction SilentlyContinue }
     Write-Step "[4/5] Evaluating first question from $InputCsv"
-    Invoke-Native $Python @('-m', 'scope.cli', 'evaluate', '--input', $InputCsv, '--limit', '1', '--runs', '1', '--max-steps', [string]$MaxSteps, '--output-retries', [string]$OutputRetries, '--search', 'ddgs', '--reader', 'jina', '--output', $Output)
+    Invoke-Native $Python @('-m', 'scope.cli', 'evaluate', '--input', $InputCsv, '--limit', '1', '--runs', '1', '--max-steps', [string]$MaxSteps, '--output-retries', [string]$OutputRetries, '--observation-chunk-chars', [string]$ObservationChunkChars, '--search', 'ddgs', '--reader', 'jina', '--output', $Output)
     $Summary = [System.IO.Path]::ChangeExtension($Output, 'summary.json')
     Write-Step "[5/5] Evaluation completed. Result: $Output"
     Write-Step "Summary: $Summary"

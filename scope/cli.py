@@ -51,6 +51,8 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Print live stages, timings and tool errors")
     parser.add_argument("--log-file", help="Append diagnostics to a UTF-8 log file")
     parser.add_argument("--output-retries", type=int, default=1, help="Output correction attempts per model role (0-3); executor uses step budget")
+    parser.add_argument("--tokenizer", default=os.environ.get("SCOPE_TOKENIZER_PATH"), help="Matching tokenizer.json for exact capsule token counting; omitted means legacy byte budget")
+    parser.add_argument("--observation-chunk-chars", type=int, default=4000)
     args = parser.parse_args()
     if args.verbose:
         os.environ["SCOPE_VERBOSE"] = "1"
@@ -59,7 +61,10 @@ def main():
         os.environ["SCOPE_LOG_FILE"] = args.log_file
     cfg = Config(max_steps=args.max_steps, dag=args.ablation != "no-dag",
                  structured_memory=args.ablation != "no-memory", verification=args.ablation != "no-verification",
-                 output_retries=args.output_retries)
+                 output_retries=args.output_retries, tokenizer_path=args.tokenizer,
+                 observation_chunk_chars=args.observation_chunk_chars)
+    if args.tokenizer:
+        os.environ["SCOPE_TOKENIZER_PATH"] = args.tokenizer
     backend = DemoBackend() if args.command == "demo" else OpenAIBackend()
     tools = DemoTools() if args.command == "demo" else WebTools(search=args.search, reader=args.reader)
     engine = Engine(backend, tools, cfg)
@@ -82,6 +87,9 @@ def main():
         provenance["ddgs_backend"] = getattr(getattr(tools, "retrieval", None), "ddgs_backend", None)
         provenance["output_retries"] = cfg.output_retries
         provenance["code_commit"] = os.environ.get("SCOPE_CODE_COMMIT")
+        provenance.update(model_api=getattr(backend, 'api_mode', None), response_format=getattr(backend, 'response_mode', None),
+                          context_tokens=getattr(backend, 'context_tokens', None), max_output_tokens=getattr(backend, 'max_output_tokens', None),
+                          capsule_budget=engine.capsule_budget, observation_chunk_chars=cfg.observation_chunk_chars)
         stopped = False
         with target.open("x", encoding="utf-8") as out:
             for run in range(args.runs):
