@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "encoding": "utf-8-sig",
+  "seed": "scope-public-baseline-v1-seed42",
+  "selection": "sort by SHA256(seed + colon + original ID), take N; MuSiQue 500 per hop",
+  "paper_exact_subset": false,
+  "outputs": [
+    {
+      "file": "hotpotqa_dev.csv",
+      "rows": 7405,
+      "sha256": "ddcb83686ad1ca547131621d2a7874cc6686564cd66456b6a8d6068f5831e975",
+      "bytes": 1846193,
+      "levels": {
+        "hard": 7405
+      },
+      "hops": {
+        "unspecified": 7405
+      }
+    },
+    {
+      "file": "hotpotqa_sample1000.csv",
+      "rows": 1000,
+      "sha256": "e8c9312e969de4e96bee65a13c8b8eef1cf31638d8312d3d9e0811726df9218e",
+      "bytes": 247758,
+      "levels": {
+        "hard": 1000
+      },
+      "hops": {
+        "unspecified": 1000
+      }
+    },
+    {
+      "file": "musique_dev.csv",
+      "rows": 2417,
+      "sha256": "bee8c81564dfa37e7da928b73cfdc816df5139ca81f822b5064aa810d682e4d6",
+      "bytes": 721224,
+      "levels": {
+        "unspecified": 2417
+      },
+      "hops": {
+        "2": 1252,
+        "3": 760,
+        "4": 405
+      }
+    },
+    {
+      "file": "musique_2_3hop.csv",
+      "rows": 2012,
+      "sha256": "67875d7d6dc25cf71beae6ddd11fa386eba3034ef4c34eae9bd9b3d41c916664",
+      "bytes": 555277,
+      "levels": {
+        "unspecified": 2012
+      },
+      "hops": {
+        "2": 1252,
+        "3": 760
+      }
+    },
+    {
+      "file": "musique_sample1000.csv",
+      "rows": 1000,
+      "sha256": "add7bed86a4301e66959a1e76b304e5b0088c04b3104c647c731456162173d7c",
+      "bytes": 286754,
+      "levels": {
+        "unspecified": 1000
+      },
+      "hops": {
+        "2": 500,
+        "3": 500
+      }
+    },
+    {
+      "file": "bamboogle.csv",
+      "rows": 125,
+      "sha256": "f364d3c6d4d6c01b9b391ff193134083209c9a4c590210eaafd60977ed36e177",
+      "bytes": 16481,
+      "levels": {
+        "unspecified": 125
+      },
+      "hops": {
+        "unspecified": 125
+      }
+    },
+    {
+      "file": "scope_public_baseline2125.csv",
+      "rows": 2125,
+      "sha256": "dd42e82fb75caf57ad5d0552730eacd7b50457cdad7f5054585add1de488e2e5",
+      "bytes": 550787,
+      "levels": {
+        "hard": 1000,
+        "unspecified": 1125
+      },
+      "hops": {
+        "unspecified": 1125,
+        "2": 500,
+        "3": 500
+      }
+    }
+  ]
+}

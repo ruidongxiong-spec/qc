@@ -12,6 +12,7 @@ import time
 from .backends import DemoBackend, OpenAIBackend
 from .core import Config, Engine
 from .evaluation import score
+from .datasets import load_questions
 from .tools import DemoTools, WebTools
 
 
@@ -133,7 +134,7 @@ def main():
     parser.add_argument("--reader", default="direct", choices=["direct", "jina"])
     args = parser.parse_args()
     models = json.loads(Path(args.models).read_text(encoding="utf-8"))["models"]
-    rows = [json.loads(line) for line in Path(args.input).read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = load_questions(args.input)
     report = run_matrix(models, rows, args.output, runs=args.runs, search=args.search, reader=args.reader,
                         resume=args.resume, demo=args.demo)
     print(json.dumps(report, indent=2))

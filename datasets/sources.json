@@ -1,0 +1,45 @@
+{
+  "retrieved_on": "2026-10-23",
+  "sources": [
+    {
+      "dataset": "hotpotqa",
+      "raw_filename": "hotpotqa.json",
+      "url": "https://raw.githubusercontent.com/eduardokruel/mscthesis/2b996279ec7b13031d4ee064c9a41218991d79a7/datasets/hotpotqa/hotpot_dev_distractor_v1.json",
+      "repository": "eduardokruel/mscthesis",
+      "commit": "2b996279ec7b13031d4ee064c9a41218991d79a7",
+      "sha256": "4e9ecb5c8d3b719f624d66b60f8d56bf227f03914f5f0753d6fa1b359d7104ea",
+      "bytes": 46320117,
+      "expected_rows": 7405,
+      "encoding": "utf-8",
+      "official_repository": "https://github.com/hotpotqa/hotpot",
+      "license": "CC-BY-SA-4.0"
+    },
+    {
+      "dataset": "musique",
+      "raw_filename": "musique_questions.jsonl",
+      "url": "https://raw.githubusercontent.com/sonnguyen112/EvidencePath/db1a6bdd1b1d818e578ab1ab2c0a9e41ac0a9d15/artifacts/musique-ans/questions.jsonl",
+      "repository": "sonnguyen112/EvidencePath",
+      "commit": "db1a6bdd1b1d818e578ab1ab2c0a9e41ac0a9d15",
+      "sha256": "c89c1fcb374147ca3f8e4f20c978b78822d2da1b704c57e6c1755cd8ecf2b236",
+      "bytes": 57055438,
+      "expected_rows": 2417,
+      "encoding": "utf-8",
+      "official_repository": "https://github.com/StonyBrookNLP/musique",
+      "license": "CC-BY-4.0",
+      "format_note": "Mirror-normalized MuSiQue-Ans v1.0 dev QA export; not a byte-identical official raw JSONL. Retains available answers/support references; official aliases/decomposition may be absent."
+    },
+    {
+      "dataset": "bamboogle",
+      "raw_filename": "bamboogle.csv",
+      "url": "https://raw.githubusercontent.com/sunlab-osu/Understanding-CoT/f03070c45dace69892fc594dfb3cf6c2afc657f9/Bamboogle%20Prerelease%20-%20Sheet1.csv",
+      "repository": "sunlab-osu/Understanding-CoT",
+      "commit": "f03070c45dace69892fc594dfb3cf6c2afc657f9",
+      "sha256": "28f2b73c592f4feb939d8954e1cc08e446aa98bbfa66858299bd10295ed604ce",
+      "bytes": 10519,
+      "expected_rows": 125,
+      "encoding": "cp1252",
+      "official_repository": "https://github.com/ofirpress/self-ask",
+      "license": "MIT"
+    }
+  ]
+}

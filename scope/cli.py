@@ -8,6 +8,7 @@ import time
 from .backends import DemoBackend, OpenAIBackend
 from .core import Config, Engine
 from .evaluation import score
+from .datasets import load_questions
 from .tools import DemoTools, WebTools
 
 
@@ -15,7 +16,7 @@ def main():
     parser = argparse.ArgumentParser(description="SCOPE research reproduction")
     parser.add_argument("command", choices=["demo", "run", "evaluate"])
     parser.add_argument("--query")
-    parser.add_argument("--input", help="JSONL rows: id, question, answer (string or list)")
+    parser.add_argument("--input", help="CSV or JSONL rows: id, question, answer")
     parser.add_argument("--output", default="runs/result.json")
     parser.add_argument("--max-steps", type=int, default=8)
     parser.add_argument("--runs", type=int, default=3)
@@ -35,7 +36,7 @@ def main():
     if args.command == "evaluate":
         if not args.input or args.runs < 1 or (args.limit is not None and args.limit < 1):
             parser.error("evaluate needs --input, positive --runs and --limit")
-        rows = [json.loads(line) for line in Path(args.input).read_text(encoding="utf-8").splitlines() if line.strip()]
+        rows = load_questions(args.input)
         rows = rows[:args.limit] if args.limit else rows
         if not rows:
             parser.error("Empty evaluation dataset")

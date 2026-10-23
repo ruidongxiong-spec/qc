@@ -50,3 +50,7 @@ python -m scope.report --input runs/model-comparison/summary.json --output runs/
 ## 下一轮应补的研究能力
 
 按优先级：真实 tokenizer 的 512-token Capsule 预算；完整基准导入与分组；统一独立 judge；逐次统计及 bootstrap 区间；固定证据基线；工具/模型错误分类与账单成本；对齐模型的 ReAct/MindSearch。当前仍以 UTF-8 字节预算保守近似 tokenizer，这会影响性能，正式表格前必须解决。
+
+## 当前仓库内可用数据
+
+公开数据 CSV 已落地，详见 [`../datasets/README.md`](../datasets/README.md)。可直接用 `--input datasets/bamboogle.csv` 或 `--input datasets/scope_public_baseline2125.csv`。合并版用于工程基线；原始论文的分组/抽样仍未知。当前 HotpotQA dev 只有 hard 标签，不能生成论文 Easy/Medium 两组的结果。MuSiQue 的 1,000 题固定为 2-hop、3-hop 各 500，不是论文作者抽样。

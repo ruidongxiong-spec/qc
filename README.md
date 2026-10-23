@@ -78,3 +78,9 @@ python -m scope.report --input runs/matrix-demo/summary.json --output runs/matri
 ```
 
 `--demo` 只检查评测流水线。真实运行前必须替换 models.json 的占位模型 ID、配置凭据并去掉 `--demo`；不能据此生成模型排名。
+
+## 已包含的论文相关数据
+
+真实 CSV 已放在 [`datasets/`](datasets/README.md)：HotpotQA 开发集 7,405 题、MuSiQue 开发集 QA 镜像导出 2,417 题、Bamboogle 125 题，以及固定的 1,000/1,000/125 评测抽样和合并版 2,125 题。评测 CLI 和模型矩阵现在直接接受 CSV，无需转成 JSONL。
+
+这些是带 GitHub 来源、固定 commit、校验和、许可说明的公开数据导出，**不是论文作者原始抽样清单**。HotpotQA 这份 dev 全部为 hard；MuSiQue 为镜像规范化 QA 视图，不能冒充官方完整 raw 格式。数据来源、字段与精确限制见 datasets/README.md。
